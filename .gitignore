@@ -1,0 +1,14 @@
+# Dependencies and caches -- reinstalled, never backed up.
+node_modules/
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+*.log
+.DS_Store
+
+# Credentials. Never commit; keep the .example alongside instead.
+.env
+.env.*
+!.env.example
