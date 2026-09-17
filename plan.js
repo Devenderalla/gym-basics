@@ -121,7 +121,7 @@ window.GBPlan = (function () {
 
   /* bumped when the exercise pool or selection changes, so a stored week
      built from the old library is rebuilt with the same answers */
-  var PLAN_V = 2;
+  var PLAN_V = 3;
 
   var DOW = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
   var DOW_SHORT = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];

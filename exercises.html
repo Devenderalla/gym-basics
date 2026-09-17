@@ -62,7 +62,7 @@
   <div class="wrap">
     <span class="eyebrow">Position · movement · breathing · mistakes</span>
     <h1 class="h-sec">Exercise library</h1>
-    <p class="lede">Every exercise used in the programs, with the full instructions the machine placard never gives you — and an easier or harder version for whatever level you're at today.</p>
+    <p class="lede">Every exercise used in the programs — something for every body part on every station in the gym — with the full instructions the machine placard never gives you, and an easier or harder version for whatever level you're at today.</p>
   </div>
 </div>
 
@@ -72,7 +72,7 @@
       <div class="toolbar">
         <label class="search">
           <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="2"/><path d="M12.5 12.5L16 16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-          <input type="search" id="exSearch" placeholder="Search exercises — “squat”, “press”, “curl”…" aria-label="Search exercises">
+          <input type="search" id="exSearch" placeholder="Search exercises or stations — “squat”, “smith”, “hamstrings”…" aria-label="Search exercises">
         </label>
         <div class="chip-row" role="group" aria-label="Filter by muscle">
           <span class="chip-label">Muscle</span>
@@ -86,6 +86,7 @@
           <button class="chip" type="button" data-ex-muscle="core" aria-pressed="false">Core</button>
           <button class="chip" type="button" data-ex-muscle="full" aria-pressed="false">Full body</button>
         </div>
+        <div class="chip-row" id="exParts" role="group" aria-label="Filter by body part" hidden></div>
         <div class="chip-row" role="group" aria-label="Filter by level">
           <span class="chip-label">Level</span>
           <button class="chip" type="button" data-ex-level="all" aria-pressed="true">All</button>
@@ -100,9 +101,11 @@
           <button class="chip" type="button" data-ex-kit="cable" aria-pressed="false">Cables</button>
           <button class="chip" type="button" data-ex-kit="dumbbell" aria-pressed="false">Dumbbells</button>
           <button class="chip" type="button" data-ex-kit="barbell" aria-pressed="false">Barbell</button>
+          <button class="chip" type="button" data-ex-kit="kettlebell" aria-pressed="false">Kettlebells</button>
           <button class="chip" type="button" data-ex-kit="bodyweight" aria-pressed="false">Bodyweight</button>
           <button class="chip" type="button" data-ex-kit="cardio" aria-pressed="false">Cardio</button>
         </div>
+        <p class="count-note" id="exStation" hidden></p>
         <span class="count-note" id="exCount" aria-live="polite"></span>
       </div>
 

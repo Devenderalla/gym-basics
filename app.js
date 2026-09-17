@@ -156,6 +156,21 @@
   if (eqGrid && GB) {
     var eqState = { q: "", cat: param("cat") || "all", muscle: param("muscle") || "all" };
 
+    /* the station's exercises, by body part — plates only load other stations */
+    function eqExercises(e) {
+      var on = GB.EXERCISES.filter(function (x) {
+        return x.eq === e.id && x.role !== "warmup" && x.role !== "cooldown";
+      });
+      if (!on.length) return "";
+      var parts = [];
+      on.forEach(function (x) {
+        var lab = GB.PART_LABEL[x.part] || GB.MUSCLE_LABEL[x.muscle];
+        if (parts.indexOf(lab) === -1) parts.push(lab);
+      });
+      return '<p class="eq-ex-link"><a href="exercises.html?eq=' + esc(e.id) + '">' + on.length +
+        (on.length === 1 ? " exercise" : " exercises") + " on this station — " + esc(parts.join(", ")) + " →</a></p>";
+    }
+
     function eqCard(e) {
       var card = el(
         '<article class="eq-card" id="eq-' + esc(e.id) + '" data-eq="' + esc(e.id) + '">' +
@@ -175,6 +190,7 @@
             '<div class="lv i"><i></i><p><b>Intermediate:</b> ' + esc(e.int) + "</p></div>" +
             '<div class="lv a"><i></i><p><b>Advanced:</b> ' + esc(e.adv) + "</p></div>" +
             '<div class="mistake"><span>Common mistake</span>' + esc(e.mistake) + "</div>" +
+            eqExercises(e) +
           "</div>" +
         "</article>"
       );
@@ -240,7 +256,10 @@
   /* ═══ exercise library ═══ */
   var exGrid = $("#exGrid");
   if (exGrid && GB && GBP) {
-    var exState = { q: "", muscle: param("muscle") || "all", level: param("level") || "all", kit: "all" };
+    var exState = { q: "", muscle: param("muscle") || "all", part: "all", level: param("level") || "all", kit: "all",
+      eq: GB.EQ_BY_ID[param("eq")] ? param("eq") : "" };
+    function partLabel(x) { return GB.PART_LABEL[x.part] || GB.MUSCLE_LABEL[x.muscle] || ""; }
+    function libraryEntry(x) { return x.role !== "warmup" && x.role !== "cooldown"; }
 
     function exCard(x) {
       var lv = exState.level === "all" ? x.level : Math.max(x.level, +exState.level);
@@ -252,7 +271,8 @@
             "<div><h2>" + esc(x.name) + "</h2>" +
               '<div class="ex-meta">' +
                 "<span><b>" + esc(x.musclesText) + "</b></span>" +
-                "<span>" + esc(KIT_LABEL[x.kit]) + "</span>" +
+                "<span>" + esc(KIT_LABEL[x.kit]) + (x.eq && GB.EQ_BY_ID[x.eq] && x.kit !== "dumbbell" && x.kit !== "kettlebell" && x.kit !== "barbell"
+                  ? " · " + esc(GB.EQ_BY_ID[x.eq].name) : "") + "</span>" +
                 '<span class="tag ' + LV_TAG[x.level] + '">' + LV_LABEL[x.level] + "+</span>" +
               "</div></div>" +
             '<span class="ex-rx">' + esc(rxText(rx)) + "</span>" +
@@ -285,16 +305,52 @@
       return card;
     }
 
+    /* body-part chips for the chosen muscle — only when there is a choice to make */
+    function renderParts() {
+      var box = $("#exParts");
+      if (!box) return;
+      var parts = [];
+      if (exState.muscle !== "all") {
+        GB.EXERCISES.forEach(function (x) {
+          if (libraryEntry(x) && x.muscle === exState.muscle && parts.indexOf(x.part) === -1) parts.push(x.part);
+        });
+      }
+      if (parts.indexOf(exState.part) === -1) exState.part = "all";
+      box.hidden = parts.length < 2;
+      box.innerHTML = "";
+      if (box.hidden) return;
+      box.appendChild(el('<span class="chip-label">Body part</span>'));
+      ["all"].concat(parts).forEach(function (p) {
+        var c = el('<button class="chip" type="button" aria-pressed="' + (p === exState.part) + '">' +
+          esc(p === "all" ? "All" : GB.PART_LABEL[p] || p) + "</button>");
+        c.dataset.exPart = p;
+        c.addEventListener("click", function () { exState.part = p; renderParts(); renderEx(); });
+        box.appendChild(c);
+      });
+    }
+
+    function renderStation() {
+      var note = $("#exStation");
+      if (!note) return;
+      note.hidden = !exState.eq;
+      if (!exState.eq) return;
+      note.innerHTML = "Station: <b>" + esc(GB.EQ_BY_ID[exState.eq].name) + '</b> · <button type="button" class="linkish">show every station</button>';
+      $("button", note).addEventListener("click", function () { exState.eq = ""; renderStation(); renderEx(); });
+    }
+
     function renderEx() {
       exGrid.innerHTML = "";
       var q = exState.q.toLowerCase();
       var shown = 0;
       GB.EXERCISES.forEach(function (x) {
-        if (x.role === "warmup" || x.role === "cooldown") return; /* programme furniture, not library entries */
+        if (!libraryEntry(x)) return; /* programme furniture, not library entries */
         if (exState.muscle !== "all" && x.muscle !== exState.muscle) return;
+        if (exState.part !== "all" && x.part !== exState.part) return;
+        if (exState.eq && x.eq !== exState.eq) return;
         if (exState.level !== "all" && x.level > +exState.level) return;
         if (exState.kit !== "all" && x.kit !== exState.kit) return;
-        if (q && (x.name + " " + x.musclesText + " " + KIT_LABEL[x.kit]).toLowerCase().indexOf(q) === -1) return;
+        var station = x.eq && GB.EQ_BY_ID[x.eq] ? GB.EQ_BY_ID[x.eq].name : "";
+        if (q && (x.name + " " + x.musclesText + " " + KIT_LABEL[x.kit] + " " + station + " " + partLabel(x)).toLowerCase().indexOf(q) === -1) return;
         exGrid.appendChild(exCard(x));
         shown++;
       });
@@ -314,6 +370,7 @@
         var val = c.dataset[pair[0]];
         c.addEventListener("click", function () {
           exState[pair[1]] = val;
+          if (pair[1] === "muscle") renderParts();
           $$("[data-" + pair[0].replace(/[A-Z]/g, function (ch) { return "-" + ch.toLowerCase(); }) + "]").forEach(function (x) {
             x.setAttribute("aria-pressed", x === c ? "true" : "false");
           });
@@ -322,6 +379,8 @@
         if (val === exState[pair[1]]) c.setAttribute("aria-pressed", "true");
       });
     });
+    renderParts();
+    renderStation();
     renderEx();
   }
 

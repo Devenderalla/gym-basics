@@ -2309,6 +2309,52 @@ const click = (w, el) => el.dispatchEvent(new w.MouseEvent("click", { bubbles: t
     ok("...and shows on the page", $$(d, ".day-card").length === 7);
   }
 
+  /* ── the libraries and the guide, sorted by body part ── */
+  section("exercise library, equipment and guide — by body part");
+  {
+    const { w, d } = await page("exercises.html");
+    const count = () => $$(d, ".ex-card").length;
+    click(w, $(d, '[data-ex-kit="kettlebell"]'));
+    ok("kettlebell work has its own filter", count() >= 3, "got " + count());
+    click(w, $(d, '[data-ex-kit="all"]'));
+
+    ok("body-part chips stay hidden until a muscle is chosen", $(d, "#exParts").hidden);
+    click(w, $(d, '[data-ex-muscle="legs"]'));
+    const partChips = $$(d, "#exParts [data-ex-part]").map((c) => c.dataset.exPart);
+    ok("legs split into quads, hamstrings and calves",
+      ["quads", "hamstrings", "calves"].every((p) => partChips.indexOf(p) > -1), partChips.join(","));
+    click(w, $(d, '#exParts [data-ex-part="hamstrings"]'));
+    ok("a body part narrows the list to it",
+      count() > 0 && $$(d, ".ex-card").every((c) => w.GB.EX_BY_ID[c.dataset.ex].part === "hamstrings"));
+    click(w, $(d, '[data-ex-muscle="chest"]'));
+    ok("changing muscle resets the body part", $(d, '#exParts [data-ex-part="all"]').getAttribute("aria-pressed") === "true" && count() > 3);
+
+    const s = $(d, "#exSearch");
+    click(w, $(d, '[data-ex-muscle="all"]'));
+    s.value = "smith"; s.dispatchEvent(new w.Event("input", { bubbles: true }));
+    ok("search finds exercises by station", count() >= 2, "got " + count());
+    s.value = "";  s.dispatchEvent(new w.Event("input", { bubbles: true }));
+
+    const st = await page("exercises.html?eq=functional-trainer");
+    ok("a station link shows only that station's exercises",
+      $$(st.d, ".ex-card").length >= 4 && $$(st.d, ".ex-card").every((c) => c.dataset.eq === "functional-trainer"));
+    ok("...and says which station, with a way out", !$(st.d, "#exStation").hidden);
+    click(st.w, $(st.d, "#exStation button"));
+    ok("clearing it shows every station again", $$(st.d, ".ex-card").length > 40);
+
+    const eq = await page("equipment.html");
+    const withLink = $$(eq.d, ".eq-card").filter((c) => $(c, '.eq-ex-link a[href^="exercises.html?eq="]'));
+    ok("every station but plates links to its exercises", withLink.length === eq.w.GB.EQUIPMENT.length - 1,
+      withLink.length + " of " + eq.w.GB.EQUIPMENT.length);
+
+    const g = await page("guide.html");
+    const linked = new Set($$(g.d, "#bodyparts a[href^='equipment.html#eq-']").map((a) => a.getAttribute("href").slice(18)));
+    const missing = g.w.GB.EQUIPMENT.map((e) => e.id).filter((id) => id !== "plates" && !linked.has(id));
+    ok("the guide places every station under a body part", missing.length === 0, missing.join(", "));
+    ok("each body part links to its exercises", $$(g.d, "#bodyparts a[href^='exercises.html?muscle=']").length === 8);
+    ok("and the section is in the guide's nav", !!$(g.d, '.phase-nav a[href="#bodyparts"]'));
+  }
+
   console.log(`\n${pass} passed, ${fail} failed\n`);
   process.exit(fail ? 1 : 0);
 })();

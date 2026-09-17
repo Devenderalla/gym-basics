@@ -425,6 +425,28 @@ window.GB = (function () {
       var1: "Easy walks, holding the rails.", var2: "20 s brisk runs / 40 s walk.", var3: "15 s all-out sprints.",
       safety: "No stop button — slow down to stop, and never step off a moving belt." },
 
+    { id: "bike-intervals", name: "Bike pyramid intervals", muscle: "legs", part: "legs", musclesText: "Legs, heart and lungs", kit: "cardio", eq: "bike",
+      level: 1, role: "conditioning", goals: ["fatloss", "endurance", "fitness"],
+      rx: { 1: { time: "10 min steady" }, 2: { time: "20 min, resistance up every 2 min" }, 3: { time: "5 × 4 min hard / 2 min easy" } },
+      position: "Seat at hip height, knee slightly bent at the bottom of the stroke.",
+      movement: "Spin smoothly; raise the resistance a level every two minutes, then step back down.",
+      breathing: "Steady — the hard minutes should still allow a few words.",
+      mistakes: ["Seat too low", "Bouncing in the saddle at high cadence"],
+      cue: "Smooth circles, quiet hips.",
+      var1: "10 minutes at a conversational pace.", var2: "Pyramid: up a level every 2 minutes, then back down.", var3: "4-minute threshold efforts with 2 minutes easy.",
+      safety: "Kindest cardio on the knees — the finisher to choose when legs are sore." },
+
+    { id: "elliptical-steady", name: "Elliptical steady state", muscle: "full", musclesText: "Legs, arms, heart and lungs", kit: "cardio", eq: "elliptical",
+      level: 1, role: "conditioning", goals: ["fatloss", "endurance", "fitness"],
+      rx: { 1: { time: "10 min at resistance 3–5" }, 2: { time: "20 min, 2 min legs / 2 min arms" }, 3: { time: "25 min with reverse-stride blocks" } },
+      position: "Stand tall on the pedals, hands on the moving handles.",
+      movement: "Push and pull evenly; alternate blocks where the legs lead and the arms lead.",
+      breathing: "Conversational throughout.",
+      mistakes: ["Leaning your bodyweight onto the handles", "Resistance so low the pedals freewheel"],
+      cue: "Tall body, even rhythm, both ends working.",
+      var1: "10 minutes, low resistance.", var2: "20 minutes alternating leg and arm emphasis.", var3: "Add reverse-stride and higher-resistance blocks.",
+      safety: "Zero impact — a good cardio day when joints are complaining." },
+
     /* ── chest ── */
     { id: "machine-chest-press", name: "Machine chest press", muscle: "chest", musclesText: "Chest, front shoulders, triceps", kit: "machine", eq: "chest-press",
       level: 1, role: "main", goals: ["muscle", "strength", "fitness", "fatloss", "endurance"],
@@ -1248,6 +1270,15 @@ window.GB = (function () {
   };
   EXERCISES.forEach(function (x) { if (!x.part) x.part = PARTS[x.id] || x.muscle; });
 
+  var PART_LABEL = {
+    chest: "Chest", "upper-chest": "Upper chest", "chest-fly": "Chest fly",
+    lats: "Lats", "mid-back": "Mid-back", back: "Upper back",
+    "front-delts": "Front shoulders", "side-delts": "Side shoulders", "rear-delts": "Rear shoulders", shoulders: "Shoulders",
+    biceps: "Biceps", triceps: "Triceps",
+    quads: "Quads", hamstrings: "Hamstrings", calves: "Calves", glutes: "Glutes", legs: "Legs",
+    abs: "Abs", obliques: "Obliques", grip: "Grip & carries", core: "Core", full: "Full body"
+  };
+
   /* ── what the weight dropdown offers ──
      A rack does not step evenly all the way up: dumbbells go up in
      2.5s to 30 and in 5s after that, a leg press in 10s to 100 and 20s
@@ -1283,7 +1314,7 @@ window.GB = (function () {
 
   return {
     CATS: CATS, MUSCLES: MUSCLES, MUSCLE_LABEL: MUSCLE_LABEL, GOALS: GOALS,
-    EQUIPMENT: EQUIPMENT, EXERCISES: EXERCISES, EQ_BY_ID: EQ_BY_ID, EX_BY_ID: EX_BY_ID,
+    EQUIPMENT: EQUIPMENT, EXERCISES: EXERCISES, PART_LABEL: PART_LABEL, EQ_BY_ID: EQ_BY_ID, EX_BY_ID: EX_BY_ID,
     LOADS: LOADS, REPS: REPS
   };
 })();
