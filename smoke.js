@@ -431,6 +431,34 @@ const click = (w, el) => el.dispatchEvent(new w.MouseEvent("click", { bubbles: t
     ok(`${plans} level/days/goal/duration combinations all generate a valid week`,
       structural.length === 0, structural.slice(0, 3).join(" | "));
 
+    /* the duration picked is a promise about someone's evening, not a hint:
+       STRUCT counts exercises, so an advanced 4×5 with three-minute rests
+       used to turn a "45 min" session into 75 */
+    let overrun = [];
+    for (const level of [1, 2, 3])
+      for (const goal of Object.keys(GB.GOALS))
+        for (const dur of [20, 30, 45, 60, 75, 90]) {
+          const p = GBP.generate({ level, days: 4, goal, duration: dur, weekNumber: 1 });
+          for (const d of p.week.filter((x) => x.type === "train")) {
+            const mains = d.blocks.find((b) => b.role === "main");
+            /* one heavy main lift can outrun a 20-minute budget on its own;
+               that floor is deliberate, anything above it is not */
+            if (d.minutes > dur && !(mains && mains.items.length === 1 && d.count <= 1))
+              overrun.push(`L${level}/${goal}/${dur}m ${d.code} → ${d.minutes}`);
+          }
+        }
+    ok("a session fits the time the visitor asked for", overrun.length === 0,
+      overrun.slice(0, 3).join(" | "));
+    const roomy = GBP.generate({ level: 3, days: 4, goal: "muscle", duration: 90, weekNumber: 1 })
+      .week.filter((x) => x.type === "train");
+    ok("...and a long session is not left half empty",
+      roomy.every((d) => d.minutes >= 80), roomy.map((d) => d.minutes).join(","));
+    const heavy = GBP.generate({ level: 3, days: 4, goal: "strength", duration: 45, weekNumber: 1 })
+      .week.find((x) => x.type === "train");
+    ok("a heavy 45 minutes buys fewer lifts, not a longer session",
+      heavy.minutes <= 45 && heavy.blocks.find((b) => b.role === "main").items.length >= 1,
+      heavy.minutes + " min / " + heavy.count + " exercises");
+
     /* more days is not automatically better */
     const beg6 = GBP.generate({ level: 1, days: 6, goal: "fitness", duration: 45 });
     const lifting = beg6.week.filter((d) => d.type === "train" && d.tpl !== "cardio").length;

@@ -121,7 +121,7 @@ window.GBPlan = (function () {
 
   /* bumped when the exercise pool or selection changes, so a stored week
      built from the old library is rebuilt with the same answers */
-  var PLAN_V = 4;
+  var PLAN_V = 5;
 
   var DOW = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
   var DOW_SHORT = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -241,21 +241,27 @@ window.GBPlan = (function () {
 
   function weekMeta(n) { return WEEKS[((n - 1) % 4) + 1]; }
 
+  /* what one prescribed exercise costs in minutes, per planing1 */
+  function itemMinutes(it) {
+    if (!it || !it.rx) return 0;
+    if (it.rx.time) {
+      var m = String(it.rx.time).match(/(\d+)\s*min/);
+      return m ? +m[1] : 1;                            /* a drill is about a minute */
+    }
+    var sets = it.rx.sets || 1;
+    return sets * (45 + (it.rx.rest || 60)) / 60;      /* ~45s under load + the rest */
+  }
+
+  /* what the card shows: the work, warm-up and cool-down included */
+  function showMinutes(mins) { return Math.max(15, Math.round(mins / 5) * 5); }
+
   /* rough session length from the work itself, per planing1 */
   function estimateMinutes(day) {
     var mins = 0;
     day.blocks.forEach(function (b) {
-      b.items.forEach(function (it) {
-        if (it.rx.time) {
-          var m = String(it.rx.time).match(/(\d+)\s*min/);
-          mins += m ? +m[1] : 1;                       /* a drill is about a minute */
-        } else {
-          var sets = it.rx.sets || 1;
-          mins += sets * (45 + (it.rx.rest || 60)) / 60; /* ~45s under load + the rest */
-        }
-      });
+      b.items.forEach(function (it) { mins += itemMinutes(it); });
     });
-    return Math.max(15, Math.round(mins / 5) * 5);
+    return showMinutes(mins);
   }
 
   function buildDay(tplId, cfg) {
@@ -301,7 +307,9 @@ window.GBPlan = (function () {
     if (!tpl.cardioDay && mains.length < st.main) {
       mains = mains.concat(take("accessory", st.main - mains.length, tpl.muscles, usedMuscles, offset, usedParts, usedEq));
     }
-    var accs = tpl.cardioDay ? [] : take("accessory", st.acc, tpl.muscles, usedMuscles.slice(), offset, usedParts, usedEq);
+    /* more accessories than the shape asks for: the spare ones are only
+       used if the clock has room left after the session proper */
+    var accs = tpl.cardioDay ? [] : take("accessory", st.acc + 4, tpl.muscles, usedMuscles.slice(), offset, usedParts, usedEq);
     var cores = take("core", tpl.cardioDay ? 2 : st.core, ["full"], [], offset);
     var conds = (tpl.cardioDay || wantCond) ? take("conditioning", tpl.cardioDay ? 2 : (st.cond || 1), ["full"], [], offset) : [];
 
@@ -322,19 +330,57 @@ window.GBPlan = (function () {
       }
       return out;
     }
-    function block(label, list, role) {
-      return { label: label, role: role, items: list.map(function (x) { return item(x, role); }) };
+    function block(label, items, role) {
+      return { label: label, role: role, items: items };
+    }
+    function priced(list, role) {
+      return list.map(function (x) { return item(x, role); });
     }
 
-    var blocks = [block("Pre-gym · Warm-up", warmCardio.concat(prep), "warmup")];
-    if (mains.length) blocks.push(block("Main work", mains, "main"));
-    if (accs.length) blocks.push(block("Accessory work", accs, "accessory"));
-    if (conds.length) blocks.push(block("Conditioning", conds, "conditioning"));
-    if (cores.length) blocks.push(block("Core", cores, "core"));
-    blocks.push(block("Post-gym · Cool-down", cools, "cooldown"));
+    var warmItems = priced(warmCardio.concat(prep), "warmup");
+    var coolItems = priced(cools, "cooldown");
+    var mainItems = priced(mains, "main");
+    var accItems = priced(accs, "accessory");
+    var coreItems = priced(cores, "core");
+    var condItems = priced(conds, "conditioning");
 
+    /* ── fit the work to the clock ──
+       STRUCT counts exercises, not minutes, and it cannot see the level or
+       the goal: three main lifts are 45 minutes of work once an advanced
+       lifter rests three minutes between heavy sets, which quietly turned a
+       "45 min" session into 75. The duration is a promise about someone's
+       evening, so the session is filled in the order of what it would miss
+       most and stops at the budget — and if room is left over, the spare
+       accessories spend it rather than under-delivering the hour asked for. */
+    var budget = cfg.duration;
+    var spent = 0, keep = { main: [], accessory: [], conditioning: [], core: [] };
+    warmItems.concat(coolItems).forEach(function (it) { spent += itemMinutes(it); });
+    function put(it) { keep[it.role].push(it); spent += itemMinutes(it); }
+    function fits(it) { return showMinutes(spent + itemMinutes(it)) <= budget; }
+
+    /* the first main lift is the day itself — it goes in whatever the clock says */
+    if (mainItems.length) put(mainItems[0]);
+    var wantCore = tpl.cardioDay ? 2 : st.core;
+    var wantCondN = tpl.cardioDay ? 2 : (wantCond ? (st.cond || 1) : 0);
+    mainItems.slice(1, st.main)                    /* the rest of the main work */
+      .concat(condItems.slice(0, wantCondN))       /* the finisher the goal earns */
+      .concat(coreItems.slice(0, 1))               /* core is cheap and always worth it */
+      .concat(accItems.slice(0, st.acc))           /* the accessories the shape asks for */
+      .concat(coreItems.slice(1, wantCore))        /* a second core piece if there is time */
+      .concat(accItems.slice(st.acc))              /* and the spares, to fill the hour */
+      .forEach(function (it) { if (fits(it)) put(it); });
+
+    var blocks = [block("Pre-gym · Warm-up", warmItems, "warmup")];
+    if (keep.main.length) blocks.push(block("Main work", keep.main, "main"));
+    if (keep.accessory.length) blocks.push(block("Accessory work", keep.accessory, "accessory"));
+    if (keep.conditioning.length) blocks.push(block("Conditioning", keep.conditioning, "conditioning"));
+    if (keep.core.length) blocks.push(block("Core", keep.core, "core"));
+    blocks.push(block("Post-gym · Cool-down", coolItems, "cooldown"));
+
+    /* named for the work that survived the clock, not the work that was picked */
+    var trained = keep.main.concat(keep.accessory).map(function (it) { return GB.EX_BY_ID[it.id]; });
     var day = { type: "train", tpl: tplId, code: tpl.name,
-      name: bodyFocus(tpl, mains.concat(accs)), blocks: blocks };
+      name: bodyFocus(tpl, trained), blocks: blocks };
     day.count = blocks.reduce(function (a, b) {
       return a + (b.role === "warmup" || b.role === "cooldown" ? 0 : b.items.length);
     }, 0);
