@@ -2267,6 +2267,48 @@ const click = (w, el) => el.dispatchEvent(new w.MouseEvent("click", { bubbles: t
       $(d, ".pov-now").textContent === "27.5 kg", $(d, ".pov-now").textContent);
   }
 
+  /* ── the gym has the full kit: the plan should use it, part by part ── */
+  section("full gym — every station, every body part");
+  {
+    const { w, d } = await page("week.html", (win) => {
+      /* a week stored by the old library, before body parts existed */
+      win.localStorage.setItem("gb:week", JSON.stringify({ v: 1, level: 2, days: 3, goal: "muscle",
+        duration: 60, kit: "full", weekNumber: 2, seed: 0, week: [] }));
+    });
+    const GB = w.GB, P = w.GBPlan;
+    const loadingOnly = ["plates"];
+    const stations = new Set(GB.EXERCISES.map((x) => x.eq));
+    const idle = GB.EQUIPMENT.filter((e) => !stations.has(e.id) && loadingOnly.indexOf(e.id) === -1).map((e) => e.id);
+    ok("every station in the gym has an exercise", idle.length === 0, idle.join(", "));
+    ok("every exercise knows its body part", GB.EXERCISES.every((x) => !!x.part));
+
+    const moves = (p, name) => p.week.filter((x) => x.name === name)
+      .flatMap((x) => x.blocks.filter((b) => b.role === "main" || b.role === "accessory"))
+      .flatMap((b) => b.items.map((i) => GB.EX_BY_ID[i.id]));
+    const ppl = P.generate({ level: 2, days: 6, goal: "muscle", duration: 60, kit: "full", weekNumber: 1 });
+    const legs = moves(ppl, "Legs A").map((x) => x.part);
+    ok("leg day covers quads, hamstrings, glutes and calves",
+      ["quads", "hamstrings", "glutes", "calves"].every((pt) => legs.indexOf(pt) > -1), legs.join(","));
+    const pull = moves(ppl, "Pull A").map((x) => x.part);
+    ok("pull day trains back, rear shoulders and biceps",
+      ["rear-delts", "biceps"].every((pt) => pull.indexOf(pt) > -1) && pull.some((pt) => pt === "lats" || pt === "mid-back"), pull.join(","));
+    ok("pull day has no triceps", pull.indexOf("triceps") === -1);
+    const push = moves(ppl, "Push A").map((x) => x.part);
+    ok("push day has no biceps or rear shoulders", push.indexOf("biceps") === -1 && push.indexOf("rear-delts") === -1, push.join(","));
+    ok("push day hits chest, shoulders and triceps",
+      push.some((pt) => /chest/.test(pt)) && push.some((pt) => /delts/.test(pt)) && push.indexOf("triceps") > -1, push.join(","));
+
+    const week = [...ppl.week.flatMap((x) => x.blocks.flatMap((b) => b.items.map((i) => i.eq)))];
+    const onlyNew = ["hack-squat", "smith-machine", "functional-trainer", "skierg"];
+    ok("a full-gym week reaches beyond the original stations",
+      onlyNew.filter((e) => week.indexOf(e) > -1).length >= 3, onlyNew.filter((e) => week.indexOf(e) > -1).join(","));
+
+    const kept = JSON.parse(w.localStorage.getItem("gb:week"));
+    ok("a week stored from the old library is rebuilt", kept.v === P.PLAN_V && kept.week.length === 7);
+    ok("...with the same answers and week number", kept.level === 2 && kept.days === 3 && kept.weekNumber === 2);
+    ok("...and shows on the page", $$(d, ".day-card").length === 7);
+  }
+
   console.log(`\n${pass} passed, ${fail} failed\n`);
   process.exit(fail ? 1 : 0);
 })();

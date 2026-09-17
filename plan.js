@@ -50,14 +50,17 @@ window.GBPlan = (function () {
     return out;
   }
 
-  /* opts: {level, goal, kit, muscles, used, usedMuscles, offset}
-     `used` and `usedMuscles` are mutated, as the builder relies on. */
+  /* opts: {level, goal, kit, muscles, used, usedMuscles, usedParts, usedEq, offset}
+     `used`, `usedMuscles`, `usedParts` and `usedEq` are mutated, as the
+     builder relies on. */
   function pick(role, count, opts) {
     if (!count) return [];
     var kits = KIT_SETS[opts.kit];
     var muscles = opts.muscles || ["full"];
     var used = opts.used || [];
     var usedMuscles = opts.usedMuscles || [];
+    var usedParts = opts.usedParts || [];
+    var usedEq = opts.usedEq || [];
     var wantAll = muscles.indexOf("full") > -1;
 
     var pool = GB.EXERCISES.filter(function (x) {
@@ -66,7 +69,7 @@ window.GBPlan = (function () {
       if (kits && kits.indexOf(x.kit) === -1) return false;
       if (used.indexOf(x.id) > -1) return false;
       /* core and conditioning serve any focus, so they skip the muscle filter */
-      if (!wantAll && muscles.indexOf(x.muscle) === -1 &&
+      if (!wantAll && muscles.indexOf(x.muscle) === -1 && (opts.parts || []).indexOf(x.part) === -1 &&
           !(role === "conditioning" || role === "core" || role === "warmup" || role === "cooldown")) return false;
       if (!bestRx(x, opts.level)) return false;
       return true;
@@ -87,28 +90,49 @@ window.GBPlan = (function () {
        days of the same split (Full body A / B) differ without either
        becoming the worse session. offset 0 reproduces the builder exactly. */
     var offset = opts.offset || 0;
+    /* spread, in order of importance: a muscle not yet trained, then a
+       body part within it (a hamstring lift before a third quad lift), then a station
+       not yet used — the gym has the full kit, so use it */
+    function spread(x) {
+      var part = x.part || x.muscle;
+      var partCount = usedParts.filter(function (p) { return p === part; }).length;
+      return (usedMuscles.indexOf(x.muscle) > -1 ? 4 : 0) + partCount * 2 +
+        (x.eq && usedEq.indexOf(x.eq) > -1 ? 1 : 0);
+    }
     var out = [];
     while (out.length < count && pool.length) {
-      var fresh = [];
-      pool.forEach(function (x, i) { if (usedMuscles.indexOf(x.muscle) === -1) fresh.push(i); });
-      var idx = fresh.length ? fresh[offset % fresh.length] : (offset % pool.length);
+      var best = Infinity, fresh = [];
+      pool.forEach(function (x, i) {
+        var sc = spread(x);
+        if (sc < best) { best = sc; fresh = [i]; } else if (sc === best) fresh.push(i);
+      });
+      var idx = fresh[offset % fresh.length];
       var chosen = pool.splice(idx, 1)[0];
       out.push(chosen);
       used.push(chosen.id);
       usedMuscles.push(chosen.muscle);
+      usedParts.push(chosen.part || chosen.muscle);
+      if (chosen.eq) usedEq.push(chosen.eq);
     }
     return out;
   }
 
   /* ═══ 2. week engine ═══ */
 
+  /* bumped when the exercise pool or selection changes, so a stored week
+     built from the old library is rebuilt with the same answers */
+  var PLAN_V = 2;
+
   var DOW = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
   var DOW_SHORT = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
   /* The muscle taxonomy has a single "arms" bucket, so a pull day would
-     otherwise be free to pick triceps work and a push day biceps curls. */
-  var TRICEPS = ["triceps-pushdown", "overhead-triceps"];
-  var BICEPS = ["db-curl", "ez-curl"];
+     otherwise be free to pick triceps work and a push day biceps curls.
+     Ruled out by body part, so new arm exercises are covered automatically. */
+  var TRICEPS = ["triceps"];
+  var BICEPS = ["biceps", "rear-delts"];
+  /* rear shoulders are a pulling muscle: they belong on pull day, not push */
+  var PULL_PARTS = ["rear-delts"];
 
   /* day templates — a name plus a muscle focus. Counts still come from
      STRUCT[duration], so a day generates through the proven builder path. */
@@ -122,15 +146,15 @@ window.GBPlan = (function () {
     lowerB:  { name: "Lower B", muscles: ["legs", "glutes"], offset: 1 },
     pushA:   { name: "Push A", muscles: ["chest", "shoulders", "arms"], offset: 0, avoid: BICEPS },
     pushB:   { name: "Push B", muscles: ["chest", "shoulders", "arms"], offset: 1, avoid: BICEPS },
-    pullA:   { name: "Pull A", muscles: ["back", "arms"], offset: 0, avoid: TRICEPS },
-    pullB:   { name: "Pull B", muscles: ["back", "arms"], offset: 1, avoid: TRICEPS },
+    pullA:   { name: "Pull A", muscles: ["back", "arms"], parts: PULL_PARTS, offset: 0, avoid: TRICEPS },
+    pullB:   { name: "Pull B", muscles: ["back", "arms"], parts: PULL_PARTS, offset: 1, avoid: TRICEPS },
     legsA:   { name: "Legs A", muscles: ["legs", "glutes"], offset: 0 },
     legsB:   { name: "Legs B", muscles: ["legs", "glutes"], offset: 1 },
     cardio:  { name: "Cardio + core", muscles: ["full"], offset: 0, cardioDay: true }
   };
 
-  /* Beginners are not given six lifting days. Level 1 has 14 main+accessory
-     exercises (back: 2, glutes: 0) — six lifting days would repeat the same
+  /* Beginners are not given six lifting days. Level 1 has a smaller pool of
+     main+accessory exercises — six lifting days would repeat the same
      handful, and more days is not automatically better. Extra days become
      cardio and active recovery instead. */
   var SPLITS = {
@@ -210,13 +234,16 @@ window.GBPlan = (function () {
     var offset = (tpl.offset || 0) + (cfg.seed || 0);
 
     /* seeding `used` is how a template rules an exercise out */
-    var used = (tpl.avoid || []).slice(), usedMuscles = [];
+    var used = GB.EXERCISES.filter(function (x) {
+      return (tpl.avoid || []).indexOf(x.part) > -1;
+    }).map(function (x) { return x.id; });
+    var usedMuscles = [], usedParts = [], usedEq = [];
     var base = { level: cfg.level, goal: cfg.goal, kit: cfg.kit || "full", used: used };
 
-    function take(role, count, muscles, um, off) {
+    function take(role, count, muscles, um, off, up, ue) {
       return pick(role, count, {
         level: base.level, goal: base.goal, kit: base.kit, muscles: muscles,
-        used: used, usedMuscles: um, offset: off
+        parts: tpl.parts, used: used, usedMuscles: um, usedParts: up || [], usedEq: ue || [], offset: off
       });
     }
 
@@ -231,11 +258,13 @@ window.GBPlan = (function () {
       used.push(pk.id); prep.push(pk);
     }
 
-    var mains = tpl.cardioDay ? [] : take("main", st.main, tpl.muscles, usedMuscles, offset);
+    /* body parts and stations carry from main work into accessories, so the
+       accessory slots finish what the main lifts left untouched */
+    var mains = tpl.cardioDay ? [] : take("main", st.main, tpl.muscles, usedMuscles, offset, usedParts, usedEq);
     if (!tpl.cardioDay && mains.length < st.main) {
-      mains = mains.concat(take("accessory", st.main - mains.length, tpl.muscles, usedMuscles, offset));
+      mains = mains.concat(take("accessory", st.main - mains.length, tpl.muscles, usedMuscles, offset, usedParts, usedEq));
     }
-    var accs = tpl.cardioDay ? [] : take("accessory", st.acc, tpl.muscles, usedMuscles.slice(), offset);
+    var accs = tpl.cardioDay ? [] : take("accessory", st.acc, tpl.muscles, usedMuscles.slice(), offset, usedParts, usedEq);
     var cores = take("core", tpl.cardioDay ? 2 : st.core, ["full"], [], offset);
     var conds = (tpl.cardioDay || wantCond) ? take("conditioning", tpl.cardioDay ? 2 : (st.cond || 1), ["full"], [], offset) : [];
 
@@ -310,7 +339,7 @@ window.GBPlan = (function () {
 
     var wk = weekMeta(c.weekNumber);
     return {
-      v: 1, level: c.level, days: c.days, goal: c.goal, duration: c.duration, kit: c.kit,
+      v: PLAN_V, level: c.level, days: c.days, goal: c.goal, duration: c.duration, kit: c.kit,
       weekNumber: c.weekNumber, seed: c.seed,
       focus: wk.focus, note: wk.note,
       trainingDays: split.length,
@@ -328,7 +357,7 @@ window.GBPlan = (function () {
     /* selection */
     KIT_SETS: KIT_SETS, STRUCT: STRUCT, bestRx: bestRx, rx: rx, pick: pick,
     /* week */
-    TPL: TPL, SPLITS: SPLITS, WEEKS: WEEKS, DOW: DOW, DOW_SHORT: DOW_SHORT,
+    PLAN_V: PLAN_V, TPL: TPL, SPLITS: SPLITS, WEEKS: WEEKS, DOW: DOW, DOW_SHORT: DOW_SHORT,
     generate: generate, weekMeta: weekMeta, todayIndex: todayIndex, estimateMinutes: estimateMinutes
   };
 })();

@@ -33,7 +33,19 @@
   function load(k, f) { try { return JSON.parse(localStorage.getItem(k)) || f; } catch (e) { return f; } }
   function save(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
 
-  function getPlan() { return load(KEY, null); }
+  /* a week stored before the exercise pool last changed is rebuilt from the
+     same answers, week number and seed — ticked days keep their ticks */
+  function getPlan() {
+    var p = load(KEY, null);
+    if (p && p.v !== GBP.PLAN_V) {
+      p = GBP.generate({
+        level: p.level, days: p.days, goal: p.goal, duration: p.duration,
+        kit: p.kit, weekNumber: p.weekNumber, seed: p.seed
+      });
+      save(KEY, p);
+    }
+    return p;
+  }
   function getDone() { return load(DONE_KEY, {}); }
   function dayKey(plan, dow) { return "w" + plan.weekNumber + ":" + dow; }
   function isDone(plan, dow) { return !!getDone()[dayKey(plan, dow)]; }

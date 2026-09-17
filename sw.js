@@ -7,7 +7,7 @@
    ═══════════════════════════════════════════════════════════ */
 "use strict";
 
-var VERSION = "gb-v26";
+var VERSION = "gb-v28";
 var SHELL = VERSION + "-shell";
 var MEDIA = VERSION + "-media";
 
