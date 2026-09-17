@@ -269,7 +269,10 @@
     } else {
       var n = 0, html = "";
       day.blocks.forEach(function (b) {
-        html += '<p class="plan-phase-label">' + esc(b.label) + "</p><div class=\"wo\">";
+        /* a real heading, not a paragraph that looks like one: this is what
+           lets someone jump between phases instead of arrowing through
+           every row of a session */
+        html += '<h2 class="plan-phase-label">' + esc(b.label) + "</h2><div class=\"wo\">";
         b.items.forEach(function (it) {
           n++;
           var sub = KIT_LABEL[it.kit] || "";

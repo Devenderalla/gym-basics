@@ -807,6 +807,110 @@ const click = (w, el) => el.dispatchEvent(new w.MouseEvent("click", { bubbles: t
       short.length === 0, short.map((x) => `${x.f} ${x.n}`).join(", "));
   }
 
+  /* ── structure every page is read through ──
+     Not style: this is what a screen reader navigates by, and what a
+     keyboard lands on. Measured on every page, and on the three that only
+     exist once a plan has been generated. Layout-dependent checks —
+     contrast, tap-target size, layout shift — need a real browser and live
+     in audit.md, not here. */
+  section("page structure — headings, names and labels");
+  {
+    const PAGES = ["index.html", "programs.html", "week.html", "workout.html", "beginner.html",
+      "intermediate.html", "advanced.html", "equipment.html", "exercises.html",
+      "builder.html", "guide.html", "nutrition.html"];
+    const buried = (el) => !!el.closest("[hidden], [aria-hidden='true']");
+    const label = (el) => {
+      const aria = el.getAttribute("aria-label");
+      if (aria && aria.trim()) return aria.trim();
+      const by = el.getAttribute("aria-labelledby");
+      if (by && by.split(/\s+/).map((i) => el.ownerDocument.getElementById(i)).filter(Boolean)
+        .map((n) => n.textContent.trim()).join("")) return "by";
+      if (el.textContent.trim()) return el.textContent.trim();
+      const img = el.querySelector("img[alt]");
+      if (img && img.alt.trim()) return img.alt.trim();
+      return (el.getAttribute("title") || "").trim();
+    };
+
+    const scan = (name, d) => {
+      const out = [];
+      const hs = $$(d, "h1,h2,h3,h4,h5,h6").filter((h) => !buried(h));
+      const h1 = hs.filter((h) => h.tagName === "H1").length;
+      if (h1 !== 1) out.push(`${name}: ${h1} h1`);
+      let prev = 0;
+      for (const h of hs) {
+        const lv = +h.tagName[1];
+        if (prev && lv > prev + 1) out.push(`${name}: h${prev} → h${lv} at "${h.textContent.trim().slice(0, 30)}"`);
+        prev = lv;
+        if (!h.textContent.trim()) out.push(`${name}: empty ${h.tagName}`);
+      }
+      $$(d, "img").forEach((i) => { if (!i.hasAttribute("alt")) out.push(`${name}: img without alt ${i.getAttribute("src")}`); });
+      $$(d, "svg").forEach((v) => {
+        if (v.getAttribute("aria-hidden") === "true") return;          /* decorative */
+        if (v.getAttribute("role") === "img" && (v.getAttribute("aria-label") || "").trim()) return;
+        if (!v.querySelector("title")) out.push(`${name}: svg neither hidden nor labelled`);
+      });
+      $$(d, "a[href], button, [role='button']").forEach((el) => {
+        if (!buried(el) && !label(el)) out.push(`${name}: unnamed ${el.tagName.toLowerCase()}.${String(el.className).split(" ")[0]}`);
+      });
+      $$(d, "input, select, textarea").forEach((el) => {
+        if (buried(el) || ["hidden", "submit", "button", "reset"].includes(el.type)) return;
+        const id = el.getAttribute("id");
+        const tied = id && $$(d, "label[for]").some((l) => l.getAttribute("for") === id);
+        if (!tied && !el.closest("label") && !el.getAttribute("aria-label") && !el.getAttribute("aria-labelledby"))
+          out.push(`${name}: unlabelled ${el.tagName.toLowerCase()}#${id || "?"}`);
+      });
+      const ids = {}; const dupes = [];
+      $$(d, "[id]").forEach((el) => { if (ids[el.id]) dupes.push(el.id); ids[el.id] = 1; });
+      dupes.forEach((i) => out.push(`${name}: duplicate id #${i}`));
+      $$(d, 'a[target="_blank"]').forEach((a) => {
+        if (!/noopener/.test(a.getAttribute("rel") || "")) out.push(`${name}: _blank without noopener`);
+      });
+      ["main", "header", "footer", "nav"].forEach((t) => { if (!d.querySelector(t)) out.push(`${name}: no <${t}>`); });
+      if (!d.documentElement.getAttribute("lang")) out.push(`${name}: no lang`);
+      return out;
+    };
+
+    let flaws = [], counted = 0;
+    for (const f of PAGES) {
+      const { d } = await page(f);
+      counted += $$(d, "h1,h2,h3,h4,h5,h6").length + $$(d, "a[href], button").length;
+      flaws = flaws.concat(scan(f, d));
+    }
+    ok(`every page carries one h1, no skipped levels, and a name on every control`,
+      flaws.length === 0, flaws.slice(0, 3).join(" | "));
+
+    /* the states that only exist after a plan is generated */
+    const wk = await page("week.html");
+    click(wk.w, $(wk.d, '[data-w-level="2"]'));
+    click(wk.w, $(wk.d, '[data-w-days="4"]'));
+    click(wk.w, $(wk.d, '[data-w-goal="muscle"]'));
+    click(wk.w, $(wk.d, '[data-w-duration="45"]'));
+    click(wk.w, $(wk.d, "#weekBuild"));
+    ok("a generated week keeps its structure", scan("week+plan", wk.d).length === 0,
+      scan("week+plan", wk.d).slice(0, 2).join(" | "));
+
+    const stored = wk.w.localStorage.getItem("gb:week");
+    const wo = await page("workout.html?d=0", (win) => win.localStorage.setItem("gb:week", stored));
+    ok("an open session keeps its structure", scan("workout", wo.d).length === 0,
+      scan("workout", wo.d).slice(0, 2).join(" | "));
+    /* a session is 70-odd controls; without headings on the phases it is one
+       flat wall to anyone navigating by structure */
+    const phases = $$(wo.d, ".plan-phase-label");
+    ok("each phase of a session is a heading, not a paragraph that looks like one",
+      phases.length >= 4 && phases.every((p) => /^H[1-6]$/.test(p.tagName)),
+      phases.map((p) => p.tagName).join(",") || "none");
+
+    const bl = await page("builder.html");
+    click(bl.w, $(bl.d, '[data-b-level="2"]'));
+    click(bl.w, $(bl.d, '[data-b-goal="muscle"]'));
+    click(bl.w, $(bl.d, '[data-b-duration="45"]'));
+    click(bl.w, $(bl.d, "#buildBtn"));
+    ok("a generated builder workout keeps its structure", scan("builder+plan", bl.d).length === 0,
+      scan("builder+plan", bl.d).slice(0, 2).join(" | "));
+    ok("...and its phases are headings too",
+      $$(bl.d, ".plan-phase-label").every((p) => /^H[1-6]$/.test(p.tagName)));
+  }
+
   /* ── image weight ── */
   section("images");
   {

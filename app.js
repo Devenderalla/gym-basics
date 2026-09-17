@@ -497,14 +497,14 @@
         '<div class="plan-head"><h2>' + esc(muscleText) + " · " + B.duration + " min</h2>" +
           '<span class="mono">' + esc(LV_LABEL[B.level]) + " · " + esc(GB.GOALS[B.goal]) + "</span></div>" +
         '<div class="plan-body">' +
-        '<p class="plan-phase-label">Phase 1 · Warm-up — about ' + (B.duration >= 60 ? 10 : 5) + " min</p><div class=\"wo\">" +
+        '<h2 class="plan-phase-label">Phase 1 · Warm-up — about ' + (B.duration >= 60 ? 10 : 5) + " min</h2><div class=\"wo\">" +
           woRow(++n, "General warm-up", warmCardio, "Whole body", (B.duration >= 60 ? "8–10 min" : "5 min")) +
           woRow(++n, "Movement prep", "Arm circles, hip circles, and one light practice set of your first exercise", "Joints and patterns", "2–3 min") +
         "</div>";
 
       function section(label, list, role) {
         if (!list.length) return "";
-        var s = '<p class="plan-phase-label">' + label + "</p><div class=\"wo\">";
+        var s = '<h2 class="plan-phase-label">' + label + "</h2><div class=\"wo\">";
         list.forEach(function (x) {
           var rx = goalRx(x, role);
           s += woRow(++n, x.name, KIT_LABEL[x.kit], x.musclesText, rx.time ? rx.time : rx.sets + " × " + rx.reps, rx.rest ? "rest " + rx.rest + "s" : "", x);
@@ -516,7 +516,7 @@
       html += section("Phase 4 · Core", cores, "core");
       html += section("Phase 5 · Conditioning", conds, "conditioning");
       html +=
-        '<p class="plan-phase-label">Phase ' + (5 + (conds.length ? 1 : 0) - (accs.length ? 0 : 1)) + " · Cool-down — 5 min</p><div class=\"wo\">" +
+        '<h2 class="plan-phase-label">Phase ' + (5 + (conds.length ? 1 : 0) - (accs.length ? 0 : 1)) + " · Cool-down — 5 min</h2><div class=\"wo\">" +
         woRow(++n, "Easy movement", "Slow walk or easy pedal until breathing settles", "Recovery", "2–3 min") +
         woRow(++n, "Stretch what you trained", "30 seconds per muscle, no bouncing", "Trained muscles", "2–3 min") +
         "</div>" +

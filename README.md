@@ -599,6 +599,29 @@ Still open:
 
 Done, but keep true:
 
+- **A training day is named for the body, not the split.** `Push A` is a split label, not an answer
+  to "what am I doing Monday", so `bodyFocus()` in `plan.js` names each day from the exercises it
+  actually picked — *Chest · Shoulders · Triceps* — and the split label rides along as `day.code`,
+  shown in the meta line. Both are on the card; neither replaces the other. The split structure
+  itself is untouched and still matches `planing1`.
+- **The duration someone picks is a budget, not a hint.** `STRUCT` counts exercises, not minutes,
+  and cannot see the level or the goal — so three main lifts at an advanced 4×5 with three-minute
+  rests quietly turned a "45 min" pick into 75 minutes. It did that on 40 of 90 level/goal/duration
+  combinations. `buildDay()` now prices each exercise with `itemMinutes()` before committing to it
+  and fills the session in the order of what it would miss most — first main lift, the finisher the
+  goal earns, core, then accessories — stopping at the clock; spare accessories are picked so a long
+  session can spend its hour. A heavy 45 minutes buys two lifts and core, not a 75-minute session.
+  `smoke.js` sweeps every combination and fails if one runs over. **The one deliberate exception:**
+  an advanced lifter picking 20 minutes gets 25–30, because one heavy main lift plus warm-up and
+  cool-down cannot fit in 20 — the first main lift is a floor, and shrinking the warm-up before
+  heavy work is the wrong trade.
+- **The phases of a workout are `<h2>`, not styled paragraphs.** They were `<p class=
+  "plan-phase-label">` in both `week.js` and `app.js`, which left an open session as 78 controls in
+  one flat region under the `h1` for anyone navigating by structure. `.plan-phase-label` pins
+  `font-weight: 400` so the heading renders exactly as the paragraph did — if that declaration is
+  dropped, the labels go bold. Keep the class on whatever builds a phase label; `session.js` finds
+  the phase a row belongs to by walking back to it.
+
 - **`audit.md` is current** as of 2026-08-13 and covers both `index.html` and `nutrition.html`,
   measured in real Chromium. Its seven mechanical findings were fixed the same day; what remains
   in it needs a decision or a qualified person, not a patch.
@@ -638,7 +661,9 @@ the weight trend and the correction it argues for — engine and page both — p
 whole thirteen-step switch-between-sets sequence, plus 2-, 3- and 4-set rows, ticking versus
 logging, and reset), the progressive-overload tracker (week grouping, what counts as progress, the
 stall rule), the header IA, social tags and description lengths, image weight, and the demo plumbing
-on both the equipment and exercise libraries — **679 assertions**, all passing as of 2026-08-14.
+on both the equipment and exercise libraries, that every session fits the duration it was asked
+for, and the structure every page is read through — **719 assertions**, all passing as of
+2026-09-17.
 It needs
 jsdom, which is deliberately *not* a dependency of the site:
 
@@ -648,6 +673,9 @@ npm i jsdom && node smoke.js http://localhost:8000
 ```
 
 Run it after touching `app.js`, `session.js`, `lift.js`, `progress.js`, `nutrition.js` or `foods.js`.
+Changing how a week is built means bumping `PLAN_V` in `plan.js` as well — a stored week is rebuilt
+from the visitor's own answers when that number moves, and left stale when it does not. It is at
+**5**: the body-part day names took it to 4, the duration budget to 5.
 `session.js` and `lift.js` now share a boundary — session.js owns which set is selected and whether
 it is ticked (`GBSession.count/selected/select/isDone`, and a `gb:set` event on the row), lift.js
 owns what is in it. Changing either side means running both sections.

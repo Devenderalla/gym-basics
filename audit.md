@@ -295,6 +295,50 @@ needs is the next real win, and unlike everything above it is not a one-liner.
 
 ---
 
+## The other ten pages — structural pass, 2026-09-17
+
+The scores above cover `index.html` and `nutrition.html` only. The remaining ten pages had never
+been measured at all. This pass closes the part of that gap which does not need a browser.
+
+**Method.** jsdom, every page in its real post-script state, plus the three states that only exist
+after a plan is generated — `week.html` with a week built, `workout.html` with a session open,
+`builder.html` with a workout generated. **902 headings, 82 images and SVGs, 1,051 controls and 76
+inputs** were inspected across fifteen page states. The checks: one `h1` per page, no skipped
+heading levels, `alt` on every image, every SVG either `aria-hidden` or labelled, an accessible
+name on every link and button, a label on every input, no duplicate `id`, the four landmarks, a
+skip link, `rel="noopener"` on new tabs, a `lang` attribute, and no script errors on load.
+
+**One finding, fixed the same day.**
+
+> **The phases of a workout were paragraphs dressed as headings.** `week.js` and `app.js` built
+> *Main work*, *Accessory work*, *Core* and the rest as `<p class="plan-phase-label">`. Visually
+> they read as section headings; structurally the page had none — an open session was **78
+> controls and 12 inputs in one flat region under the `h1`**, with no way to jump between phases.
+> They are `<h2>` now. `styles.css` pins `font-weight: 400` on the class, because `<p>` is normal
+> weight and `<h2>` is bold by default: the fix is invisible on screen and only changes what a
+> screen reader and a keyboard can navigate. `workout.html` went from 1 heading to 6.
+
+**Everything else passed.** No missing `alt`, no unnamed control, no unlabelled input, no duplicate
+`id`, no heading skip, no missing landmark, no script error — on any of the fifteen states. That is
+consistent with what the first two pages scored and is now enforced rather than observed: the whole
+sweep lives in `smoke.js` under *page structure*, so it runs on every change.
+
+**What this pass could not do.** jsdom has no layout, so these remain unmeasured on the ten pages
+and still need real Chromium: **text contrast**, **tap-target size**, **above-the-fold position**,
+**layout shift (CLS)**, **paint timing** and **transfer weight**. The Playwright Chromium build is
+already cached on the build machine but will not start — it is missing ten system libraries
+(`libatk-1.0`, `libgbm`, `libcairo`, `libpango` and others). One `sudo` install unblocks it:
+
+```bash
+sudo apt install -y libatk1.0-0 libatk-bridge2.0-0 libcups2 libasound2t64 \
+  libgbm1 libcairo2 libpango-1.0-0 libxcomposite1 libxdamage1 libxfixes3
+npm i -D playwright
+```
+
+Until that runs, treat the ten pages as **structurally verified and visually unverified**.
+
+---
+
 ## What needs you (ranked)
 
 1. **A registered dietitian must review the nutrition engine, the food values and the correction
