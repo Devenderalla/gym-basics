@@ -121,7 +121,7 @@ window.GBPlan = (function () {
 
   /* bumped when the exercise pool or selection changes, so a stored week
      built from the old library is rebuilt with the same answers */
-  var PLAN_V = 3;
+  var PLAN_V = 4;
 
   var DOW = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
   var DOW_SHORT = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -152,6 +152,43 @@ window.GBPlan = (function () {
     legsB:   { name: "Legs B", muscles: ["legs", "glutes"], offset: 1 },
     cardio:  { name: "Cardio + core", muscles: ["full"], offset: 0, cardioDay: true }
   };
+
+  /* What a session actually trains, in body-part words. "Push A" is a split
+     name, not an answer to "what am I doing today" — so the day is named from
+     the exercises that were picked: "Chest · Shoulders · Triceps". The split
+     name is kept alongside it as `code` for anyone who wants it. */
+  var GROUP_LABEL = {
+    chest: "Chest", back: "Back", shoulders: "Shoulders", legs: "Legs", glutes: "Glutes",
+    biceps: "Biceps", triceps: "Triceps", "rear-delts": "Rear shoulders",
+    arms: "Arms", core: "Core", full: "Full body"
+  };
+  /* parts worth naming in their own right: the data has one "arms" bucket, so
+     a push day and a pull day would otherwise both read "Arms" */
+  var NAMED_PARTS = ["triceps", "biceps", "rear-delts"];
+  /* head to toe, the order a session is normally described in */
+  var GROUP_ORDER = ["chest", "back", "shoulders", "rear-delts", "arms", "biceps", "triceps", "legs", "glutes", "core", "full"];
+
+  function bodyFocus(tpl, lifts) {
+    if (tpl.cardioDay) return "Cardio · Core";
+    var order = [], count = {};
+    lifts.forEach(function (ex) {
+      if (!ex) return;
+      var part = ex.part || ex.muscle;
+      var g = NAMED_PARTS.indexOf(part) > -1 ? part : ex.muscle;
+      if (!GROUP_LABEL[g]) g = ex.muscle;
+      if (count[g] == null) { count[g] = 0; order.push(g); }
+      count[g]++;
+    });
+    /* the most-trained groups earn the name; a full-body day gets a fourth */
+    order.sort(function (a, b) { return count[b] - count[a]; });
+    var room = tpl.muscles.indexOf("full") > -1 ? 4 : 3;
+    /* then read them out head to toe, so the same session is always worded
+       the same way round: "Chest · Shoulders · Triceps", never "Triceps · Chest" */
+    var top = order.slice(0, room).sort(function (a, b) {
+      return GROUP_ORDER.indexOf(a) - GROUP_ORDER.indexOf(b);
+    }).map(function (g) { return GROUP_LABEL[g] || g; });
+    return top.length ? top.join(" · ") : tpl.name;
+  }
 
   /* Beginners are not given six lifting days. Level 1 has a smaller pool of
      main+accessory exercises — six lifting days would repeat the same
@@ -296,7 +333,8 @@ window.GBPlan = (function () {
     if (cores.length) blocks.push(block("Core", cores, "core"));
     blocks.push(block("Post-gym · Cool-down", cools, "cooldown"));
 
-    var day = { type: "train", tpl: tplId, name: tpl.name, blocks: blocks };
+    var day = { type: "train", tpl: tplId, code: tpl.name,
+      name: bodyFocus(tpl, mains.concat(accs)), blocks: blocks };
     day.count = blocks.reduce(function (a, b) {
       return a + (b.role === "warmup" || b.role === "cooldown" ? 0 : b.items.length);
     }, 0);
@@ -358,6 +396,7 @@ window.GBPlan = (function () {
     KIT_SETS: KIT_SETS, STRUCT: STRUCT, bestRx: bestRx, rx: rx, pick: pick,
     /* week */
     PLAN_V: PLAN_V, TPL: TPL, SPLITS: SPLITS, WEEKS: WEEKS, DOW: DOW, DOW_SHORT: DOW_SHORT,
+    GROUP_LABEL: GROUP_LABEL, bodyFocus: bodyFocus,
     generate: generate, weekMeta: weekMeta, todayIndex: todayIndex, estimateMinutes: estimateMinutes
   };
 })();

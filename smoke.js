@@ -456,12 +456,28 @@ const click = (w, el) => el.dispatchEvent(new w.MouseEvent("click", { bubbles: t
     ok("fat loss earns a conditioning block at 45 min", fatDay.blocks.some((b) => b.role === "conditioning"));
 
     /* split shape by level */
-    const names = (l, d) => GBP.generate({ level: l, days: d, goal: "muscle", duration: 45 })
-      .week.filter((x) => x.type === "train").map((x) => x.name);
+    const gen = (l, d) => GBP.generate({ level: l, days: d, goal: "muscle", duration: 45 })
+      .week.filter((x) => x.type === "train");
+    const names = (l, d) => gen(l, d).map((x) => x.code);
     ok("beginners get full-body sessions", names(1, 3).every((n) => /Full body/.test(n)), names(1, 3).join(","));
     ok("intermediate 3 days is push/pull/legs", names(2, 3).join(",") === "Push A,Pull A,Legs A");
     ok("intermediate 4 days is upper/lower", names(2, 4).join(",") === "Upper A,Lower A,Upper B,Lower B");
     ok("advanced 6 days is push/pull/legs twice", names(3, 6).join(",") === "Push A,Pull A,Legs A,Push B,Pull B,Legs B");
+
+    /* the day is named for the body, not the split: a push day says chest and
+       shoulders, a pull day says back, and neither borrows the other's arm */
+    const ppl3 = gen(2, 3);
+    ok("each day is named by the body parts it trains",
+      ppl3.every((x) => x.name && x.name !== x.code && !/ A$| B$| C$/.test(x.name)), ppl3.map((x) => x.name).join(" | "));
+    ok("push day is named chest / shoulders / triceps",
+      /Chest/.test(ppl3[0].name) && /Shoulders/.test(ppl3[0].name) && !/Biceps/.test(ppl3[0].name), ppl3[0].name);
+    ok("pull day is named back / biceps", /Back/.test(ppl3[1].name) && !/Triceps/.test(ppl3[1].name), ppl3[1].name);
+    ok("leg day is named legs", /Legs|Glutes/.test(ppl3[2].name), ppl3[2].name);
+    ok("a beginner full-body day names several body parts",
+      gen(1, 3)[0].name.split(" · ").length >= 3, gen(1, 3)[0].name);
+    const cardioDay = GBP.generate({ level: 1, days: 5, goal: "fitness", duration: 45 })
+      .week.find((x) => x.tpl === "cardio");
+    ok("the cardio day says cardio", /Cardio/.test(cardioDay.name), cardioDay.name);
 
     /* A and B variants must actually differ; a repeated template must not */
     const ab = GBP.generate({ level: 3, days: 6, goal: "muscle", duration: 60 }).week.filter((x) => x.type === "train");
@@ -539,10 +555,15 @@ const click = (w, el) => el.dispatchEvent(new w.MouseEvent("click", { bubbles: t
     ok("edit and regenerate are offered", !!$(d, "#wkEdit") && !!$(d, "#wkRegen"));
     ok("the plan is stored", !!w.localStorage.getItem("gb:week"));
 
-    const before = $$(d, ".day-card.is-train h3").map((h) => h.textContent).join(",");
+    const splits = () => $$(d, ".day-card.is-train .day-meta")
+      .map((m) => m.textContent.split(" · ")[0]).join(",");
+    const bodies = () => $$(d, ".day-card.is-train h3").map((h) => h.textContent);
+    const before = splits();
+    ok("each training day is headed by the body parts it trains",
+      bodies().every((n) => n && !/ A$| B$| C$/.test(n)), bodies().join(" | "));
     click(w, $(d, "#wkRegen"));
     ok("regenerate re-renders the week", $$(d, ".day-card").length === 7);
-    ok("regenerate keeps the same split names", $$(d, ".day-card.is-train h3").map((h) => h.textContent).join(",") === before);
+    ok("regenerate keeps the same split names", splits() === before, splits() + " vs " + before);
 
     click(w, $(d, "#wkEdit"));
     ok("edit reopens the wizard", !$(d, "#weekWizard").hidden);
@@ -2282,7 +2303,7 @@ const click = (w, el) => el.dispatchEvent(new w.MouseEvent("click", { bubbles: t
     ok("every station in the gym has an exercise", idle.length === 0, idle.join(", "));
     ok("every exercise knows its body part", GB.EXERCISES.every((x) => !!x.part));
 
-    const moves = (p, name) => p.week.filter((x) => x.name === name)
+    const moves = (p, name) => p.week.filter((x) => x.code === name)
       .flatMap((x) => x.blocks.filter((b) => b.role === "main" || b.role === "accessory"))
       .flatMap((b) => b.items.map((i) => GB.EX_BY_ID[i.id]));
     const ppl = P.generate({ level: 2, days: 6, goal: "muscle", duration: 60, kit: "full", weekNumber: 1 });

@@ -81,7 +81,8 @@
       if (started) cls += " is-started";
       body =
         "<h3>" + esc(day.name) + "</h3>" +
-        '<p class="day-meta">' + day.count + " exercises · ~" + day.minutes + " min</p>" +
+        '<p class="day-meta">' + (day.code ? esc(day.code) + " · " : "") +
+          day.count + " exercises · ~" + day.minutes + " min</p>" +
         (started
           ? '<div class="day-meter" role="img" aria-label="' + pr.hit + " of " + pr.total + ' sets done">' +
               '<i style="width:' + pr.pct.toFixed(0) + '%"></i></div>' +
@@ -299,7 +300,8 @@
         head.innerHTML =
           '<span class="eyebrow">' + esc(day.dayName) + " · Week " + plan.weekNumber + "</span>" +
           '<h1 class="h-sec">' + esc(day.name) + "</h1>" +
-          '<p class="lede">' + day.count + " exercises · about " + day.minutes + " minutes · " +
+          '<p class="lede">' + (day.code ? esc(day.code) + " · " : "") +
+            day.count + " exercises · about " + day.minutes + " minutes · " +
             esc(plan.focus).toLowerCase() + "</p>" +
           '<span class="tag ' + LV_TAG[plan.level] + '">' + esc(LV_LABEL[plan.level]) + " · " + esc(GB.GOALS[plan.goal]) + "</span>";
       }
@@ -324,8 +326,8 @@
         var prev = at > 0 ? trainDays[at - 1] : null;
         var next = at > -1 && at < trainDays.length - 1 ? trainDays[at + 1] : null;
         nav.innerHTML =
-          (prev !== null ? '<a class="btn btn-ghost btn-sm" href="workout.html?d=' + prev + '">← ' + esc(plan.week[prev].name) + "</a>" : "<span></span>") +
-          (next !== null ? '<a class="btn btn-ghost btn-sm" href="workout.html?d=' + next + '">' + esc(plan.week[next].name) + " →</a>" : "<span></span>");
+          (prev !== null ? '<a class="btn btn-ghost btn-sm" href="workout.html?d=' + prev + '">← ' + esc(plan.week[prev].short) + " · " + esc(plan.week[prev].name) + "</a>" : "<span></span>") +
+          (next !== null ? '<a class="btn btn-ghost btn-sm" href="workout.html?d=' + next + '">' + esc(plan.week[next].short) + " · " + esc(plan.week[next].name) + " →</a>" : "<span></span>");
         nav.hidden = false;
       }
 
@@ -356,7 +358,8 @@
           '<span class="eyebrow">Today · ' + esc(d.dayName) + "</span>" +
           "<h2>" + esc(d.name) + "</h2>" +
           (d.type === "train"
-            ? "<p>" + d.count + " exercises · about " + d.minutes + " minutes · week " + p.weekNumber + ", " + esc(p.focus).toLowerCase() + "</p>" +
+            ? "<p>" + (d.code ? esc(d.code) + " · " : "") + d.count + " exercises · about " + d.minutes +
+              " minutes · week " + p.weekNumber + ", " + esc(p.focus).toLowerCase() + "</p>" +
               '<a class="btn btn-primary" href="workout.html?d=' + t + '">' + (complete ? "Do it again" : "Start today's workout") + "</a> " +
               '<a class="btn btn-ghost" href="week.html">See the week</a>'
             : '<ul class="day-sugg">' + d.suggestions.map(function (s) { return "<li>" + esc(s) + "</li>"; }).join("") + "</ul>" +
