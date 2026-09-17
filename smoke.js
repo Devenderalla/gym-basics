@@ -398,7 +398,7 @@ const click = (w, el) => el.dispatchEvent(new w.MouseEvent("click", { bubbles: t
     }
     const dom = await JSDOM.fromURL(BASE + "/beginner.html", { runScripts: "outside-only" });
     const d = dom.window.document;
-    ok("workout tables render with JS disabled", $$(d, ".wo-row").length === 21);
+    ok("workout tables render with JS disabled", $$(d, ".wo-row").length === 23);
     ok("no session controls without JS", $$(d, ".set-dot").length === 0);
     ok("and no weight boxes either", $$(d, ".lift-w").length === 0);
   }
