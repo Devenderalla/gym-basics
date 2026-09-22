@@ -82,6 +82,20 @@ function unlisted(src) {
     while ((m = script.exec(html))) refs.push(m[1]);
     const style = /<link[^>]+rel="stylesheet"[^>]+href="([^"]+)"/g;
     while ((m = style.exec(html))) refs.push(m[1]);
+    /* A stylesheet brings its own dependencies. The four woff2 faces are in
+       SHELL_FILES today by hand, not by check — an unlisted font is a page
+       that reflows into a fallback on the gym floor, which is the same bug
+       as an unlisted script wearing a quieter hat. */
+    for (const sheet of refs.filter((r) => r.endsWith(".css"))) {
+      const abs = path.join(ROOT, sheet);
+      if (!fs.existsSync(abs)) continue;
+      const css = fs.readFileSync(abs, "utf8");
+      let u;
+      const url = /url\(\s*["']?([^"')]+)["']?\s*\)/g;
+      while ((u = url.exec(css))) {
+        if (!/^data:/.test(u[1])) refs.push(u[1].replace(/^\.\//, ""));
+      }
+    }
     for (const ref of refs) {
       if (/^(https?:)?\/\//.test(ref)) continue;   /* the site loads nothing remote, but don't assume it */
       if (!listed.has(ref)) gaps.push([ref, page]);
@@ -101,9 +115,28 @@ function unlisted(src) {
       : ref + " (needed by " + pages[0] + (pages.length > 1 ? ` and ${pages.length - 1} more` : "") + ")");
 }
 
+/* The other direction: a file that is listed but no longer on disk. install()
+   tolerates a 404 per file so one bad entry cannot throw the whole precache
+   away, and contentHash folds the absence in as a hash input — so a deleted
+   shell file stamps a perfectly valid version over a hole in the offline copy
+   and says nothing. */
+function vanished(src) {
+  return shellFiles(src).filter((f) => !fs.existsSync(path.join(ROOT, f === "./" ? "index.html" : f)));
+}
+
 function main() {
   const write = process.argv.includes("--write");
   const src = fs.readFileSync(SW, "utf8");
+
+  const gone = vanished(src);
+  if (gone.length) {
+    console.error(
+      "sw.js: SHELL_FILES names files that are not there, so the offline copy\n" +
+      "would have holes in it:\n  " + gone.join("\n  ") + "\n" +
+      "Remove them from SHELL_FILES in sw.js, then run:  npm run bump:sw"
+    );
+    process.exit(1);
+  }
 
   const gaps = unlisted(src);
   if (gaps.length) {

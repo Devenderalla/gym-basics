@@ -121,7 +121,7 @@ window.GBPlan = (function () {
 
   /* bumped when the exercise pool or selection changes, so a stored week
      built from the old library is rebuilt with the same answers */
-  var PLAN_V = 5;
+  var PLAN_V = 6;
 
   var DOW = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
   var DOW_SHORT = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -241,13 +241,30 @@ window.GBPlan = (function () {
 
   function weekMeta(n) { return WEEKS[((n - 1) % 4) + 1]; }
 
+  /* An interval finisher costs what its intervals cost. "8 × 15 s hard / 45 s
+     easy" is eight minutes and "5 × 4 min hard / 2 min easy" is thirty, but
+     both used to be priced at the one minute a mobility drill costs, because
+     neither says "N min" in a way a single match could see. The clock then
+     waved a whole conditioning block past the budget as though it were free. */
+  function timeMinutes(t) {
+    var s = String(t);
+    var iv = /(\d+)\s*×\s*(\d+)\s*(s|min)\b[^/]*\/\s*(\d+)\s*(s|min)\b/i.exec(s);
+    if (iv) {
+      var work = +iv[2] / (iv[3].toLowerCase() === "s" ? 60 : 1);
+      var rest = +iv[4] / (iv[5].toLowerCase() === "s" ? 60 : 1);
+      return Math.max(1, Math.round(+iv[1] * (work + rest)));
+    }
+    /* distance intervals: a row or a run is about a minute, the rest is stated */
+    var dist = /(\d+)\s*×\s*\d+\s*m\b(?:[^,]*,\s*(\d+)\s*min\s*rest)?/i.exec(s);
+    if (dist) return Math.max(1, Math.round(+dist[1] * (1 + (+dist[2] || 0))));
+    var m = s.match(/(\d+)\s*min/);
+    return m ? +m[1] : 1;                              /* a drill is about a minute */
+  }
+
   /* what one prescribed exercise costs in minutes, per planing1 */
   function itemMinutes(it) {
     if (!it || !it.rx) return 0;
-    if (it.rx.time) {
-      var m = String(it.rx.time).match(/(\d+)\s*min/);
-      return m ? +m[1] : 1;                            /* a drill is about a minute */
-    }
+    if (it.rx.time) return timeMinutes(it.rx.time);
     var sets = it.rx.sets || 1;
     return sets * (45 + (it.rx.rest || 60)) / 60;      /* ~45s under load + the rest */
   }
@@ -255,13 +272,42 @@ window.GBPlan = (function () {
   /* what the card shows: the work, warm-up and cool-down included */
   function showMinutes(mins) { return Math.max(15, Math.round(mins / 5) * 5); }
 
-  /* rough session length from the work itself, per planing1 */
+  /* rough session length from the work itself: what the card shows is what
+     the exercises cost, never the number the visitor pressed */
   function estimateMinutes(day) {
     var mins = 0;
     day.blocks.forEach(function (b) {
       b.items.forEach(function (it) { mins += itemMinutes(it); });
     });
     return showMinutes(mins);
+  }
+
+  /* ── fit the work to the clock ──
+     STRUCT counts exercises, not minutes, and it cannot see the level or
+     the goal: three main lifts are 45 minutes of work once an advanced
+     lifter rests three minutes between heavy sets, which quietly turned a
+     "45 min" session into 75. The duration is a promise about someone's
+     evening, so the session is filled in the order of what it would miss
+     most and stops at the budget — and if room is left over, the spares
+     spend it rather than under-delivering the hour asked for.
+
+     Both the weekly planner and the one-off builder make that promise, so
+     both come through here. The builder used to keep its own copy of the
+     assembly and print the duration that was asked for over whatever it
+     happened to produce; a "20 min" session was never once 20 minutes.
+
+     opts.fixed  minutes already spoken for (warm-up, cool-down)
+     opts.first  the item that goes in whatever the clock says
+     opts.rest   the rest, in the order they would be missed
+     → { keep: [items], minutes: what it actually costs } */
+  function fitToClock(opts) {
+    var budget = opts.budget, spent = opts.fixed || 0, keep = [];
+    function put(it) { keep.push(it); spent += itemMinutes(it); }
+    if (opts.first) put(opts.first);
+    (opts.rest || []).forEach(function (it) {
+      if (showMinutes(spent + itemMinutes(it)) <= budget) put(it);
+    });
+    return { keep: keep, minutes: showMinutes(spent) };
   }
 
   function buildDay(tplId, cfg) {
@@ -310,8 +356,12 @@ window.GBPlan = (function () {
     /* more accessories than the shape asks for: the spare ones are only
        used if the clock has room left after the session proper */
     var accs = tpl.cardioDay ? [] : take("accessory", st.acc + 4, tpl.muscles, usedMuscles.slice(), offset, usedParts, usedEq);
-    var cores = take("core", tpl.cardioDay ? 2 : st.core, ["full"], [], offset);
-    var conds = (tpl.cardioDay || wantCond) ? take("conditioning", tpl.cardioDay ? 2 : (st.cond || 1), ["full"], [], offset) : [];
+    /* a cardio day is carried entirely by core and conditioning, so it is
+       picked with spares the way a lifting day is picked with spare
+       accessories — otherwise a 90-minute booking buys the same 40 minutes
+       as a 45-minute one. */
+    var cores = take("core", tpl.cardioDay ? 6 : st.core, ["full"], [], offset);
+    var conds = (tpl.cardioDay || wantCond) ? take("conditioning", tpl.cardioDay ? 6 : (st.cond || 1), ["full"], [], offset) : [];
 
     /* post-gym: three stretches, rotated so it is not the same three daily */
     var coolPool = GB.EXERCISES.filter(function (x) { return x.role === "cooldown"; });
@@ -344,31 +394,29 @@ window.GBPlan = (function () {
     var coreItems = priced(cores, "core");
     var condItems = priced(conds, "conditioning");
 
-    /* ── fit the work to the clock ──
-       STRUCT counts exercises, not minutes, and it cannot see the level or
-       the goal: three main lifts are 45 minutes of work once an advanced
-       lifter rests three minutes between heavy sets, which quietly turned a
-       "45 min" session into 75. The duration is a promise about someone's
-       evening, so the session is filled in the order of what it would miss
-       most and stops at the budget — and if room is left over, the spare
-       accessories spend it rather than under-delivering the hour asked for. */
-    var budget = cfg.duration;
-    var spent = 0, keep = { main: [], accessory: [], conditioning: [], core: [] };
-    warmItems.concat(coolItems).forEach(function (it) { spent += itemMinutes(it); });
-    function put(it) { keep[it.role].push(it); spent += itemMinutes(it); }
-    function fits(it) { return showMinutes(spent + itemMinutes(it)) <= budget; }
-
-    /* the first main lift is the day itself — it goes in whatever the clock says */
-    if (mainItems.length) put(mainItems[0]);
+    /* the first main lift is the day itself — it goes in whatever the clock
+       says; everything after it is ordered by what the session would miss
+       most, and fitToClock stops at the budget. */
     var wantCore = tpl.cardioDay ? 2 : st.core;
     var wantCondN = tpl.cardioDay ? 2 : (wantCond ? (st.cond || 1) : 0);
-    mainItems.slice(1, st.main)                    /* the rest of the main work */
-      .concat(condItems.slice(0, wantCondN))       /* the finisher the goal earns */
-      .concat(coreItems.slice(0, 1))               /* core is cheap and always worth it */
-      .concat(accItems.slice(0, st.acc))           /* the accessories the shape asks for */
-      .concat(coreItems.slice(1, wantCore))        /* a second core piece if there is time */
-      .concat(accItems.slice(st.acc))              /* and the spares, to fill the hour */
-      .forEach(function (it) { if (fits(it)) put(it); });
+    var fitted = fitToClock({
+      budget: cfg.duration,
+      fixed: warmItems.concat(coolItems).reduce(function (a, it) { return a + itemMinutes(it); }, 0),
+      first: mainItems[0],
+      rest: mainItems.slice(1, st.main)             /* the rest of the main work */
+        .concat(condItems.slice(0, wantCondN))      /* the finisher the goal earns */
+        .concat(coreItems.slice(0, 1))              /* core is cheap and always worth it */
+        .concat(accItems.slice(0, st.acc))          /* the accessories the shape asks for */
+        .concat(coreItems.slice(1, wantCore))       /* a second core piece if there is time */
+        .concat(accItems.slice(st.acc))             /* and the spares, to fill the hour */
+        /* a cardio day has no accessories to spend a long booking on, so its
+           own spares do it — two finishers and a plank was 40 minutes whether
+           the visitor asked for 45 or 90. */
+        .concat(condItems.slice(wantCondN))
+        .concat(coreItems.slice(Math.max(wantCore, 1)))
+    });
+    var keep = { main: [], accessory: [], conditioning: [], core: [] };
+    fitted.keep.forEach(function (it) { keep[it.role].push(it); });
 
     var blocks = [block("Pre-gym · Warm-up", warmItems, "warmup")];
     if (keep.main.length) blocks.push(block("Main work", keep.main, "main"));
@@ -443,6 +491,7 @@ window.GBPlan = (function () {
     /* week */
     PLAN_V: PLAN_V, TPL: TPL, SPLITS: SPLITS, WEEKS: WEEKS, DOW: DOW, DOW_SHORT: DOW_SHORT,
     GROUP_LABEL: GROUP_LABEL, bodyFocus: bodyFocus,
-    generate: generate, weekMeta: weekMeta, todayIndex: todayIndex, estimateMinutes: estimateMinutes
+    generate: generate, weekMeta: weekMeta, todayIndex: todayIndex,
+    estimateMinutes: estimateMinutes, itemMinutes: itemMinutes, fitToClock: fitToClock
   };
 })();

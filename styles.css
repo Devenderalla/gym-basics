@@ -584,6 +584,13 @@ a:hover .ph img, .card-link:hover .ph img { transform: scale(1.03); }
   padding: 8px var(--sp-5);
 }
 .plan-body .wo { border: 0; border-radius: 0; }
+/* said when the session the clock allows is not the length that was asked for */
+.plan-clock {
+  margin: 0; padding: var(--sp-5) var(--sp-6);
+  border-bottom: 1px solid var(--line);
+  background: var(--paper-2);
+  font-size: 14.5px; line-height: 1.55; color: var(--ink-2);
+}
 
 /* ─── floor map (preserved signature, regraded) ─── */
 .map-fig { border: 1px solid var(--line); border-radius: var(--r-lg); padding: var(--sp-5); background: var(--paper-2); }

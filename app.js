@@ -480,10 +480,37 @@
       if (mains.length < st.main) {
         mains = mains.concat(pickExercises("accessory", st.main - mains.length, used, usedMuscles));
       }
-      var accs = pickExercises("accessory", st.acc, used, usedMuscles.slice());
+      /* spares, so a 90-minute booking has something to spend the hour on */
+      var accs = pickExercises("accessory", st.acc + 4, used, usedMuscles.slice());
       var cores = pickExercises("core", st.core, used, []);
       var conds = (B.goal === "fatloss" || B.goal === "endurance" || B.goal === "fitness") && st.cond
         ? pickExercises("conditioning", st.cond, used, []) : [];
+
+      /* ── the duration is a budget, not a caption ──
+         This page used to print the number the visitor pressed over whatever
+         STRUCT happened to produce: a "20 min" session was never once 20
+         minutes, and 90 minutes of machines could come back as 30. It now
+         runs the same clock the weekly planner runs, and says what it built. */
+      var warmMins = B.duration >= 60 ? 12 : 8, coolMins = 5;
+      function priced(list, role) {
+        return list.map(function (x) { return { ex: x, role: role, rx: goalRx(x, role) }; });
+      }
+      var mainItems = priced(mains, "main"), accItems = priced(accs, "accessory"),
+          coreItems = priced(cores, "core"), condItems = priced(conds, "conditioning");
+      var fitted = GBP.fitToClock({
+        budget: B.duration,
+        fixed: warmMins + coolMins,
+        first: mainItems[0],
+        rest: mainItems.slice(1)
+          .concat(condItems)
+          .concat(coreItems.slice(0, 1))
+          .concat(accItems.slice(0, st.acc))
+          .concat(coreItems.slice(1))
+          .concat(accItems.slice(st.acc))
+      });
+      var keep = { main: [], accessory: [], core: [], conditioning: [] };
+      fitted.keep.forEach(function (it) { keep[it.role].push(it); });
+      var mins = fitted.minutes;
 
       var out = $("#builderOut");
       var muscleText = B.muscles.indexOf("full") > -1 ? "Full body"
@@ -492,31 +519,50 @@
         ? "March on the spot, arm circles, hip hinges and 10 slow bodyweight squats"
         : "Easy cardio — treadmill walk, bike or rower at a conversational pace";
 
-      var n = 0;
+      /* the clock rarely lands exactly on the booking, and both directions are
+         worth a sentence: silently handing back a shorter session is what this
+         page used to do, and a 20-minute pick cannot hold a warm-up, a lift and
+         a cool-down however it is arranged. */
+      var clockNote = "";
+      if (mins > B.duration) {
+        clockNote = "<p class=\"plan-clock\">This comes to about " + mins + " minutes rather than " +
+          B.duration + ". A warm-up, one main lift and a cool-down is the floor — there is no " +
+          "arrangement of " + B.duration + " minutes that holds all three, and cutting the warm-up " +
+          "before the heaviest thing you will do is the wrong saving.</p>";
+      } else if (B.duration - mins >= 10) {
+        clockNote = "<p class=\"plan-clock\">This comes to about " + mins + " minutes, not " + B.duration +
+          ". " + (B.kit === "dumbbells" ? "Dumbbells and bodyweight only" :
+                  B.kit === "machines" ? "Machines and cables only" : "This pick") +
+          (B.muscles.indexOf("full") > -1 ? "" : ", for " + esc(muscleText.toLowerCase()) + ",") +
+          " runs out of different work before the clock runs out. Add equipment or another muscle group " +
+          "to fill the time — repeating the same movement for another twenty minutes is not training.</p>";
+      }
+
+      var n = 0, phase = 0;
       var html =
-        '<div class="plan-head"><h2>' + esc(muscleText) + " · " + B.duration + " min</h2>" +
+        '<div class="plan-head"><h2>' + esc(muscleText) + " · " + mins + " min</h2>" +
           '<span class="mono">' + esc(LV_LABEL[B.level]) + " · " + esc(GB.GOALS[B.goal]) + "</span></div>" +
-        '<div class="plan-body">' +
-        '<h2 class="plan-phase-label">Phase 1 · Warm-up — about ' + (B.duration >= 60 ? 10 : 5) + " min</h2><div class=\"wo\">" +
+        '<div class="plan-body">' + clockNote +
+        '<h2 class="plan-phase-label">Phase ' + (++phase) + " · Warm-up — about " + warmMins + " min</h2><div class=\"wo\">" +
           woRow(++n, "General warm-up", warmCardio, "Whole body", (B.duration >= 60 ? "8–10 min" : "5 min")) +
           woRow(++n, "Movement prep", "Arm circles, hip circles, and one light practice set of your first exercise", "Joints and patterns", "2–3 min") +
         "</div>";
 
-      function section(label, list, role) {
+      function section(label, list) {
         if (!list.length) return "";
-        var s = '<h2 class="plan-phase-label">' + label + "</h2><div class=\"wo\">";
-        list.forEach(function (x) {
-          var rx = goalRx(x, role);
+        var s = '<h2 class="plan-phase-label">Phase ' + (++phase) + " · " + label + "</h2><div class=\"wo\">";
+        list.forEach(function (it) {
+          var x = it.ex, rx = it.rx;
           s += woRow(++n, x.name, KIT_LABEL[x.kit], x.musclesText, rx.time ? rx.time : rx.sets + " × " + rx.reps, rx.rest ? "rest " + rx.rest + "s" : "", x);
         });
         return s + "</div>";
       }
-      html += section("Phase 2 · Main work", mains, "main");
-      html += section("Phase 3 · Accessory work", accs, "accessory");
-      html += section("Phase 4 · Core", cores, "core");
-      html += section("Phase 5 · Conditioning", conds, "conditioning");
+      html += section("Main work", keep.main);
+      html += section("Accessory work", keep.accessory);
+      html += section("Core", keep.core);
+      html += section("Conditioning", keep.conditioning);
       html +=
-        '<h2 class="plan-phase-label">Phase ' + (5 + (conds.length ? 1 : 0) - (accs.length ? 0 : 1)) + " · Cool-down — 5 min</h2><div class=\"wo\">" +
+        '<h2 class="plan-phase-label">Phase ' + (++phase) + " · Cool-down — " + coolMins + " min</h2><div class=\"wo\">" +
         woRow(++n, "Easy movement", "Slow walk or easy pedal until breathing settles", "Recovery", "2–3 min") +
         woRow(++n, "Stretch what you trained", "30 seconds per muscle, no bouncing", "Trained muscles", "2–3 min") +
         "</div>" +

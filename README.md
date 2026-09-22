@@ -504,8 +504,12 @@ npm run bump:sw         # restamp by hand, if you ever need to
 npm run check:sw        # is the stamp current?
 ```
 
-The same check fails when a page or script the site loads is missing from `SHELL_FILES` —
-the file that isn't listed is the one page that doesn't work in the gym.
+The same check fails both ways round a `SHELL_FILES` mistake: a page, script, stylesheet or
+font the site loads but the list doesn't name (the file that isn't listed is the one page that
+doesn't work in the gym), and a file the list names that is no longer on disk (`install()`
+tolerates a 404 per file, so a deleted shell file would otherwise stamp a valid version over a
+hole in the offline copy). Stylesheets are followed into their `url()` references, which is how
+the four woff2 faces are covered.
 
 Photos are cached under an unversioned name. They never change in place (a new photo gets a
 new filename), so tying them to `VERSION` only threw away ~1.7 MB the phone had already paid
@@ -643,6 +647,29 @@ Done, but keep true:
   an advanced lifter picking 20 minutes gets 25–30, because one heavy main lift plus warm-up and
   cool-down cannot fit in 20 — the first main lift is a floor, and shrinking the warm-up before
   heavy work is the wrong trade.
+- **The builder makes the same promise, so it runs the same clock.** That fix landed in `plan.js`
+  and stopped there. `builder.html` kept its own copy of the assembly — `pick()` and `STRUCT`, no
+  pricing, no budget — and printed the duration that had been *pressed* over whatever came out: a
+  "20 min" session was never once 20 minutes, and 90 minutes of machines could come back as 30.
+  The fill loop is now `GBPlan.fitToClock()`, called by `buildDay()` and by the builder, and the
+  heading reports what it built. If you add a third page that prescribes a session, call
+  `fitToClock` rather than assembling a third time.
+- **The equipment has a ceiling the duration buttons don't know about.** Dumbbells, kettlebells
+  and bodyweight are 20 library exercises; ask for 90 minutes of dumbbell chest work and there is
+  not 90 minutes of *different* work to give. Both pages now say so before or instead of handing
+  back a short session — `.plan-clock` on the builder, `#weekHint` on the week — naming the choice
+  that is the ceiling. Neither pads the session out by repeating a movement, which would be the
+  dishonest way to make the number match.
+- **A conditioning finisher costs what its intervals cost.** `itemMinutes()` priced anything
+  without a literal "N min" at one minute, the price of a mobility drill — so *8 × 15 s hard /
+  45 s easy* was costed at 1 minute instead of 8, and *5 × 4 min hard / 2 min easy* at 4 instead
+  of 30. The clock then waved a whole conditioning block past the budget as though it were free.
+  `timeMinutes()` reads the interval and distance forms; anything else still costs a minute.
+  `PLAN_V` went to 6 so a week saved under the old pricing is rebuilt from the same answers.
+- **A cardio day spends the booking too.** The beginner five- and six-day weeks include one cardio
+  day, and it took two finishers and a plank whether the visitor asked for 45 minutes or 90. It is
+  now picked with spares and filled by the same clock as a lifting day, up to what the 9
+  conditioning and 7 core movements can honestly cover.
 - **The phases of a workout are `<h2>`, not styled paragraphs.** They were `<p class=
   "plan-phase-label">` in both `week.js` and `app.js`, which left an open session as 78 controls in
   one flat region under the `h1` for anyone navigating by structure. `.plan-phase-label` pins

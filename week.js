@@ -215,7 +215,10 @@
     wire("w-duration", "duration", num);
     wire("w-kit", "kit", str);
 
-    /* honest note when the frequency outruns what the level needs */
+    /* honest notes, before the week is built: when the frequency outruns what
+       the level needs, and when the equipment cannot fill the evening asked
+       for. Both are answered by generating the week and reading it, rather
+       than by a second set of rules that could drift from the generator. */
     function hint() {
       var h = $("#weekHint");
       if (!h) return;
@@ -226,6 +229,19 @@
         h.innerHTML = "<b>" + W.days + " days is more than a beginner needs.</b> Your week will hold " +
           lifting + " lifting sessions plus cardio and active recovery — that is what actually builds the habit " +
           "without outrunning your recovery. More days is not automatically better.";
+        return;
+      }
+      var sample = GBP.generate({ level: W.level, days: W.days, goal: W.goal, duration: W.duration, kit: W.kit, weekNumber: 1 });
+      var train = sample.week.filter(function (d) { return d.type === "train"; });
+      var typical = train.length
+        ? Math.round(train.reduce(function (a, d) { return a + d.minutes; }, 0) / train.length) : W.duration;
+      if (W.duration - typical >= 10) {
+        h.hidden = false;
+        h.innerHTML = "<b>" + (W.kit === "dumbbells" ? "Dumbbells and bodyweight only" :
+                               W.kit === "machines" ? "Machines and cables only" : "This pick") +
+          " will not fill " + W.duration + " minutes.</b> Your sessions will come out around " + typical +
+          " minutes — there is only so much different work in that equipment before it turns into repetition. " +
+          "Open up the equipment, or book the time you will actually use.";
       } else { h.hidden = true; }
     }
     hint();

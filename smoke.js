@@ -110,12 +110,70 @@ const click = (w, el) => el.dispatchEvent(new w.MouseEvent("click", { bubbles: t
       click(w, $(d, "#buildBtn"));
       const rows = $$(d, "#builderOut .wo-row").length;
       minRows = Math.min(minRows, rows);
-      if (rows < 6) allBuilt = false;
+      /* five is the floor, not a slip: a 20-minute booking is two warm-up
+         rows, one main lift and two cool-down rows once the clock is honest
+         about what a warm-up costs — the weekly planner fits one work item
+         into 20 minutes too. */
+      if (rows < 5) allBuilt = false;
     }
     ok("all six level/goal/duration combos build a session", allBuilt, "min rows " + minRows);
     ok("plan has warm-up and cool-down phases",
       $$(d, ".plan-phase-label").some((p) => /Warm-up/.test(p.textContent)) &&
       $$(d, ".plan-phase-label").some((p) => /Cool-down/.test(p.textContent)));
+
+    /* The heading used to print the duration that was pressed, over whatever
+       STRUCT happened to produce — a "20 min" session was never once 20
+       minutes. It must now be read back off the work on the page. The rows
+       are re-priced from their rendered text, not from the objects that drew
+       them, so this checks the page rather than restating the code. */
+    {
+      const rowMinutes = (row) => {
+        const rx = $(row, ".wo-rx");
+        const txt = rx ? rx.textContent : "";
+        const iv = /(\d+)\s*×\s*(\d+)\s*(s|min)\b[^/]*\/\s*(\d+)\s*(s|min)\b/i.exec(txt);
+        if (iv) return +iv[1] * (+iv[2] / (iv[3] === "s" ? 60 : 1) + +iv[4] / (iv[5] === "s" ? 60 : 1));
+        const dist = /(\d+)\s*×\s*\d+\s*m\b(?:[^,]*,\s*(\d+)\s*min\s*rest)?/i.exec(txt);
+        if (dist) return +dist[1] * (1 + (+dist[2] || 0));
+        const t = /(\d+)\s*min/.exec(txt);
+        if (t) return +t[1];
+        const sets = /(\d+)\s*×/.exec(txt);
+        if (!sets) return 1;
+        const rest = /rest\s*(\d+)\s*s/.exec(txt);
+        return +sets[1] * (45 + (rest ? +rest[1] : 60)) / 60;
+      };
+      let worst = null;
+      for (const [lvl, goal, dur] of combos) {
+        click(w, $(d, `[data-b-level="${lvl}"]`));
+        click(w, $(d, `[data-b-goal="${goal}"]`));
+        click(w, $(d, `[data-b-duration="${dur}"]`));
+        click(w, $(d, "#buildBtn"));
+        const said = +/(\d+)\s*min/.exec($(d, ".plan-head h2").textContent)[1];
+        const costs = $$(d, "#builderOut .wo-row").reduce((a, r) => a + rowMinutes(r), 0);
+        const off = Math.abs(said - costs);
+        if (!worst || off > worst.off) worst = { off, said, costs: Math.round(costs), tag: `L${lvl}/${goal}/${dur}m` };
+      }
+      ok("the builder's heading is the session it built, not the button that was pressed",
+        worst.off <= 5, `worst ${worst.tag}: heading ${worst.said} min, rows cost ${worst.costs} min`);
+
+      /* twenty exercises' worth of dumbbell chest work does not exist, so a
+         90-minute booking cannot be filled — and the page has to say so
+         rather than hand back a short session under a long heading */
+      click(w, $(d, '[data-b-level="1"]'));
+      click(w, $(d, '[data-b-goal="muscle"]'));
+      click(w, $(d, '[data-b-kit="dumbbells"]'));
+      click(w, $(d, '[data-b-muscle="chest"]'));
+      click(w, $(d, '[data-b-duration="90"]'));
+      click(w, $(d, "#buildBtn"));
+      const head = +/(\d+)\s*min/.exec($(d, ".plan-head h2").textContent)[1];
+      ok("a booking the equipment cannot fill is not dressed up as a full session", head < 90, head + " min");
+      ok("and the page says which choice is the ceiling",
+        !!$(d, ".plan-clock") && /dumbbell/i.test($(d, ".plan-clock").textContent),
+        $(d, ".plan-clock") ? $(d, ".plan-clock").textContent.slice(0, 80) : "no note");
+
+      const phases = $$(d, ".plan-phase-label").map((p) => +/Phase\s+(\d+)/.exec(p.textContent)[1]);
+      ok("phases are numbered in order with no gaps",
+        phases.every((n, i) => n === i + 1), phases.join(","));
+    }
 
     /* live session on generated plans */
     const dots = $$(d, "#builderOut .set-dot");
@@ -465,6 +523,14 @@ const click = (w, el) => el.dispatchEvent(new w.MouseEvent("click", { bubbles: t
     ok("a beginner picking 6 days gets at most 4 lifting sessions", lifting <= 4, "got " + lifting);
     ok("the extra beginner days become cardio or recovery",
       beg6.week.some((d) => d.tpl === "cardio") && beg6.week.some((d) => d.type !== "train"));
+    /* the cardio day is carried by core and conditioning alone; it used to be
+       the same two finishers and a plank whether 45 or 90 minutes was asked for */
+    const cardioAt = (dur) => GBP.estimateMinutes(
+      GBP.generate({ level: 1, days: 5, goal: "muscle", duration: dur }).week.find((x) => x.tpl === "cardio"));
+    ok("a beginner's cardio day spends the time that was booked",
+      cardioAt(90) > cardioAt(45) && cardioAt(45) > cardioAt(30),
+      `30m→${cardioAt(30)} · 45m→${cardioAt(45)} · 90m→${cardioAt(90)}`);
+
     const adv6 = GBP.generate({ level: 3, days: 6, goal: "muscle", duration: 60 });
     ok("an advanced 6-day week is six real training days",
       adv6.week.filter((d) => d.type === "train").length === 6);
@@ -567,8 +633,19 @@ const click = (w, el) => el.dispatchEvent(new w.MouseEvent("click", { bubbles: t
     click(w, $(d, '[data-w-days="3"]'));
     ok("the warning clears at a sensible frequency", $(d, "#weekHint").hidden);
 
+    /* the equipment has a ceiling the duration buttons don't know about */
+    click(w, $(d, '[data-w-kit="dumbbells"]'));
+    click(w, $(d, '[data-w-duration="90"]'));
+    ok("booking 90 minutes on dumbbells warns before it builds", !$(d, "#weekHint").hidden);
+    ok("...and says what the sessions will actually run to",
+      /will not fill 90 minutes/.test($(d, "#weekHint").textContent) &&
+      /around \d+ minutes/.test($(d, "#weekHint").textContent),
+      $(d, "#weekHint").textContent.slice(0, 90));
+    click(w, $(d, '[data-w-kit="full"]'));
+
     click(w, $(d, '[data-w-goal="muscle"]'));
     click(w, $(d, '[data-w-duration="45"]'));
+    ok("a full gym at 45 minutes needs no warning", $(d, "#weekHint").hidden);
     click(w, $(d, "#weekBuild"));
 
     ok("generating hides the wizard", $(d, "#weekWizard").hidden);

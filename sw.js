@@ -12,7 +12,7 @@
    ═══════════════════════════════════════════════════════════ */
 "use strict";
 
-var VERSION = "gb-v31.603eb266";
+var VERSION = "gb-v31.c6a3948c";
 var SHELL = VERSION + "-shell";
 
 /* Photos are deliberately NOT versioned. They never change in place —
