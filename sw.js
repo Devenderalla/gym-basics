@@ -3,13 +3,26 @@
    Gym floors are basements. The whole site is static, so all
    of it can live on the phone.
 
-   Bump VERSION whenever any shell file below changes.
+   VERSION is not edited by hand. The suffix is a hash of every
+   file in SHELL_FILES, written by tools/sw-version.js — run by
+   the pre-commit hook, checked by `npm test`. Forgetting to bump
+   it used to be silent and cost returning visitors the update;
+   now a shell file cannot change without the stamp moving.
+   The leading counter is the human part: bump it for a release.
    ═══════════════════════════════════════════════════════════ */
 "use strict";
 
-var VERSION = "gb-v31";
+var VERSION = "gb-v31.603eb266";
 var SHELL = VERSION + "-shell";
-var MEDIA = VERSION + "-media";
+
+/* Photos are deliberately NOT versioned. They never change in place —
+   a new photo gets a new filename — so tying them to VERSION only meant
+   every shell change threw away ~1.7 MB of images the phone had already
+   paid for. That was survivable while bumps were manual and rare; with
+   the stamp moving on every content change it would be a fresh image
+   download per deploy, down the gym connection this whole file exists
+   for. Old versioned media caches are swept in activate below. */
+var MEDIA = "gb-media";
 
 /* Everything needed to run the site with no network at all.
    Photos are deliberately absent — they are cached as they are

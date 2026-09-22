@@ -1,0 +1,18 @@
+#!/bin/sh
+# Gym Basics — restamp the service worker before the commit is written.
+#
+# VERSION in sw.js is derived from the content of every shell file, so it
+# is a build artifact, not a decision. Leaving it to memory is what let
+# the site ship shell changes that returning phones never saw.
+#
+# Only sw.js is touched, and only when it is already going to be wrong.
+# Enable with: npm run setup:hooks   (git config core.hooksPath .githooks)
+
+[ -z "$SKIP_SW_STAMP" ] || exit 0
+command -v node >/dev/null 2>&1 || exit 0
+
+node tools/sw-version.js >/dev/null 2>&1 && exit 0
+
+node tools/sw-version.js --write || exit 1
+git add sw.js
+echo "pre-commit: sw.js restamped and staged."

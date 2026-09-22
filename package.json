@@ -4,7 +4,12 @@
   "description": "Static training site. The site itself has no dependencies; these are the test harness only.",
   "scripts": {
     "serve": "python3 -m http.server 8000",
+    "bump:sw": "node tools/sw-version.js --write",
+    "check:sw": "node tools/sw-version.js",
+    "setup:hooks": "git config core.hooksPath .githooks",
+    "pretest": "node tools/sw-version.js",
     "test": "node smoke.js http://localhost:8000",
+    "pretest:ci": "node tools/sw-version.js",
     "test:ci": "python3 -m http.server 8765 & SRV=$!; sleep 2; node smoke.js http://localhost:8765; ST=$?; kill $SRV; exit $ST"
   },
   "devDependencies": {

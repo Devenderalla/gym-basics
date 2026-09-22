@@ -483,8 +483,33 @@ normal state of a gym basement. `sw.js` precaches the shell (all pages, CSS, JS,
 on first visit and caches photos as they are seen, so a first load doesn't pull the
 whole image folder down a bad connection.
 
-**Bump `VERSION` in `sw.js` whenever a shell file changes**, or returning visitors keep
-the old cached copy.
+**`VERSION` in `sw.js` is not edited by hand.** Forgetting to bump it was silent and
+expensive — the browser only reinstalls a worker whose own bytes changed, so an unbumped
+`sw.js` leaves returning phones serving the old build with nothing anywhere saying so.
+The stamp is derived from the content instead:
+
+```
+gb-v31.603eb266
+   │       └── sha256 of every file in SHELL_FILES, first 8 hex
+   └────────── human counter, bumped by hand for a release
+```
+
+`tools/sw-version.js` writes it. The pre-commit hook runs it, so a shell file cannot change
+without the stamp moving; `npm test` checks it, so a commit made without the hook still gets
+caught. Install the hook once per clone:
+
+```
+npm run setup:hooks     # git config core.hooksPath .githooks
+npm run bump:sw         # restamp by hand, if you ever need to
+npm run check:sw        # is the stamp current?
+```
+
+The same check fails when a page or script the site loads is missing from `SHELL_FILES` —
+the file that isn't listed is the one page that doesn't work in the gym.
+
+Photos are cached under an unversioned name. They never change in place (a new photo gets a
+new filename), so tying them to `VERSION` only threw away ~1.7 MB the phone had already paid
+for on every release. Old versioned media caches are swept on activate.
 
 ## Navigation
 
