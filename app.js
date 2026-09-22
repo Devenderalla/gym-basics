@@ -101,10 +101,11 @@
   }
   armFallbacks(document);
 
-  /* All 30 stations carry a photo as of 2026-08-14, but `img: null` stays
-     supported: a station without one renders its tile straight away rather
-     than requesting a file that was never there and waiting for the 404 —
-     same markup the fallback above produces. */
+  /* 30 of the 34 stations carry a photo; the four added 2026-09-22 do not
+     yet. `img: null` is a supported state, not a broken one: a station
+     without a photo renders its tile straight away rather than requesting
+     a file that was never there and waiting for the 404 — same markup the
+     fallback above produces. */
   function phot(e, ratio) {
     var box = '<div class="ph ph-' + (ratio || "3x2") + '">';
     if (!e.img) return box + '<div class="ph-fallback"><span>' + esc(e.name) + "</span></div></div>";

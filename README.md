@@ -35,8 +35,8 @@ workout.html       one day from that plan, guided set by set (?d=0 … ?d=6)
 beginner.html      full guided machine session (6 phases) + first-4-weeks roadmap
 intermediate.html  push/pull/legs split with a fully guided push day + progression rules
 advanced.html      guided lower-body strength day, 5-day week, intensity techniques
-equipment.html     30 stations, searchable, filterable by zone and muscle
-exercises.html     63 exercises with full instructions, filterable by muscle/level/equipment
+equipment.html     34 stations, searchable, filterable by zone and muscle
+exercises.html     67 exercises with full instructions, filterable by muscle/level/equipment
 builder.html       level + goal + muscles + duration + equipment → structured session
 guide.html         the original first-day content: floor map, weights primer,
                    first 30 minutes, etiquette, what to bring
@@ -46,7 +46,7 @@ guide.html         the original first-day content: floor map, weights primer,
 
 ```
 styles.css   design system shared by all pages
-data.js      the database: 30 equipment entries + 81 exercises, and the weight
+data.js      the database: 34 equipment entries + 85 exercises, and the weight
              ladders each station steps in (single source of truth)
 plan.js      training engine — exercise selection, split templates, week generation
 app.js       nav, scroll reveal, library rendering, filters, workout builder
@@ -539,7 +539,7 @@ something up**. Any element carrying `data-eq` (a station) or `data-ex` (an exer
 is followed to its station) gets the button, which covers program rows, generated plans,
 builder output, the equipment cards and — since 2026-08-13 — the exercise cards, which
 carry both and reach the demo through the station their exercise uses. So a clip filmed once
-appears in both libraries. 60 of the 63 exercises name a station; the three that use none
+appears in both libraries. 64 of the 67 exercises name a station; the three that use none
 (bodyweight and cardio work) are correctly left unnamed and never get a button.
 
 Placement follows the surface: workout rows put it with the set buttons, equipment cards
@@ -568,10 +568,15 @@ Photos are WebP, sized to how they actually render — 900px for cards (a 3-colu
 1152px content box is ~362 CSS px, so this covers 2× on a phone) and 1600px for the hero.
 That took the site from 6.1 MB to 2.4 MB.
 
-All 30 stations carry a photo as of 2026-08-14. The last two holdouts — hip thrust machine and
-pendulum squat, which no free-licensed library had — were supplied by the site owner and are the
-only two images not from Pexels; they are also the only two below the 900px convention (488px and
-316px, their native size — upscaling would add bytes, not detail). `img: null` remains a supported
+All of the original 30 stations carry a photo as of 2026-08-14. The last two holdouts — hip
+thrust machine and pendulum squat, which no free-licensed library had — were supplied by the site
+owner and are the only two images not from Pexels; they are also the only two below the 900px
+convention (488px and 316px, their native size — upscaling would add bytes, not detail).
+
+**Four stations are unphotographed**, added 2026-09-22: lateral raise machine, machine low row,
+biceps curl machine and abdominal crunch machine. No free-licensed library carries a usable shot of
+any of them and the Pexels API needs a key this machine does not have, so they ship as `img: null`
+until someone photographs them on a gym floor. `img: null` remains a supported
 state: such a card renders the typographic tile directly, no request goes out. The `onerror`
 fallback in `app.js` stays as the net for a photo that is named but fails to load. See
 `img/SOURCES.md`.
@@ -593,15 +598,18 @@ place to find out how it is wired.
   there, so anything longer is writing nobody reads. The nutrition page was 234 — roughly its last
   third never rendered — and four others sat at 163–167. All twelve are now within the guideline.
   Check the count when editing one; it is the easiest thing on the site to quietly break.
-- **Two descriptions carry a number rather than a list.** *All 30 gym stations* and *63 exercises*
+- **Two descriptions carry a number rather than a list.** *All 34 gym stations* and *67 exercises*
   replaced a taxonomy and a vague "every exercise in the programs". If the libraries grow, these
   two strings and the *Specific verifiable claim* row in `copy-doc.md` have to move together.
   They did grow, and the strings didn't: the library reached 63 while every public claim still
   said 41. **`smoke.js` now enforces this** — it counts `data.js` and fails if any claimed number
   disagrees, so the next time the library grows the test says so instead of the metadata rotting.
-- **63, not 81.** `data.js` holds 81 exercises, but 18 are warm-up and cool-down furniture the
-  library filters out (`role === "warmup" || role === "cooldown"`). 63 is what a reader can count
-  on the page, so 63 is the number that may be claimed anywhere public.
+- **67, not 85.** `data.js` holds 85 exercises, but 18 are warm-up and cool-down furniture the
+  library filters out (`role === "warmup" || role === "cooldown"`). 67 is what a reader can count
+  on the page, so 67 is the number that may be claimed anywhere public.
+- **The equipment description no longer says *photographed*.** It claimed *All 30 gym stations
+  photographed and explained*; four of the 34 are not photographed, so the word came out rather
+  than the claim being left 88% true. Put it back when the four photos land.
 - **The nutrition page's opening order is deliberate and measured**, not stylistic. Headline, three
   sentences of lede, then the `Work out my target ↓` button — all above the fold on a 375×812
   phone, with the first question's answer buttons at 753px. It used to run ~100 words of lede with
@@ -628,9 +636,43 @@ Still open:
    literally in a way text does not. `demo.js`, the cue overlay and `vid/README.md`'s shot list are
    all in place, but no entry in `data.js` carries a `video` yet, so the button renders nowhere.
 4. The footer promises "no tracking" — keep it true if adding analytics.
+5. **Week 3 promises a set it cannot always deliver.** `WEEKS[3].note` reads *"One extra set on
+   the main lifts"*, and on 237 of the 1,350 answer combinations there is no room for one — a
+   45-minute strength day is three main lifts at three-minute rests, and a fourth set fits
+   nowhere. The engine now leaves that day alone rather than dropping a lift or overrunning the
+   booking (see below), which is the right call, but the note still claims the set. Either the
+   note should read the day it is shown against, or week 3 should offer something else — a
+   slower tempo, say — when the clock is full.
+6. **Photograph the four stations added 2026-09-22** — lateral raise machine, machine low row,
+   biceps curl machine and abdominal crunch machine. They render the typographic tile until then.
+   `smoke.js` names the four in `PENDING_PHOTO` so the debt cannot go quiet: delete an id when its
+   photo lands, and put *photographed* back into `equipment.html`'s meta description once the list
+   is empty.
 
 Done, but keep true:
 
+- **Adding volume must never remove volume.** Week 3 adds a set to the main lifts. That set used
+  to be priced *before* `fitToClock` ran, so the clock paid for it out of whatever came last — an
+  accessory, or on a strength day another main lift. The "add volume" week therefore cut volume:
+  main-lift sets fell on 64 of the 1,350 level/days/goal/duration/kit combinations (18 sets became
+  16) and total sets fell on 461 of them. `smoke.js` had one assertion on this and it passed by a
+  single set, on the one set of answers it sampled.
+
+  The clock now chooses the session from the base prescription — so every week in a block runs the
+  same exercises, which is the point of a block — and the extra set is offered to each main lift in
+  turn out of whatever slack the booking has left. Nothing is sold to pay for it. Volume rises on
+  1,113 combinations, falls on none, and days that overrun their booking dropped from 414 to 276
+  (all of them the 20-minute floor, which was already deliberate). The test is now a sweep of all
+  1,350 rather than a sample of one, and it measures the promise rather than a proxy for it.
+
+- **The library holds what a real gym holds, not what stock photography has.** Four stations came
+  from a member's own gym on 2026-09-22 — lateral raise machine, machine low row, biceps curl
+  machine and abdominal crunch machine. The library had no machine biceps curl, no machine lateral
+  raise and no weighted ab station at all, so a week built for someone training on exactly those
+  machines sent them to a cable crossover instead. Each new station carries one exercise, which is
+  what keeps every station linking to something (`smoke.js` enforces that, and that the guide
+  places each one under a body part). `PLAN_V` went to 7 so a stored week is rebuilt with the new
+  stations in the pool instead of waiting for the visitor to change an answer.
 - **A training day is named for the body, not the split.** `Push A` is a split label, not an answer
   to "what am I doing Monday", so `bodyFocus()` in `plan.js` names each day from the exercises it
   actually picked — *Chest · Shoulders · Triceps* — and the split label rides along as `day.code`,

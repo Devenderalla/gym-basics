@@ -19,9 +19,10 @@ window.GB = (function () {
   /* ── equipment ──
      id, name, cat, img, what, muscles (taxonomy keys), musclesText,
      how, beg / int / adv (level-specific use), mistake
-     img    — every station now has one. `null` is still honoured: the card
-              renders a typographic tile instead of asking the network for
-              a file that was never there
+     img    — `null` is honoured: the card renders a typographic tile
+              instead of asking the network for a file that was never
+              there. The four stations added from a member's own gym on
+              2026-09-22 sit in that state until they are photographed
      steps  — the numbered "how to use" list, for the demo panel
      video  — optional { src, sec }; the demo button only renders when
               a station has one, so clips can be added one at a time */
@@ -128,6 +129,17 @@ window.GB = (function () {
       adv: "Heavy top sets, then a drop set — the fixed path makes machine presses ideal for pushing close to failure safely.",
       mistake: "Starting with the handles behind your head line. Set the seat so the press goes straight up, not backwards." },
 
+    { id: "lateral-raise-machine", name: "Lateral raise machine", cat: "machines", img: null,
+      what: "The side of the shoulder, on rails. The arc is fixed, so the weight cannot drift forward where the front of the shoulder takes over.",
+      muscles: ["shoulders"], musclesText: "Side shoulders",
+      load: [[2.5, 30, 2.5], [30, 50, 5]],   /* a side delt is small on a long lever \u2014 this stack gets heavy fast */
+      how: "Set the pads or handles to meet your upper arms with your shoulders level with the pivot. Raise out to shoulder height, pause, and lower slowly.",
+      steps: ["Set the height so your shoulders line up with the pivot", "Upper arms against the pads, hands light", "Raise out to shoulder height", "Pause at the top", "Lower slowly"],
+      beg: "The lightest pin, 12\u201315 repetitions. It needs far less weight than it looks like it should.",
+      int: "3 sets of 12\u201315 after pressing.",
+      adv: "Drop sets, slow negatives, or a one-second hold at the top of every rep.",
+      mistake: "Going above shoulder height. Past that the trapezius takes the load and the shoulder you came for stops working." },
+
     { id: "lat-pulldown", name: "Lat pulldown", cat: "machines", img: "img/eq-lat-pulldown.webp",
       what: "The broad muscles across your back, plus your biceps — the movement that eventually becomes a pull-up.",
       muscles: ["back", "arms"], musclesText: "Lats, upper back, biceps",
@@ -147,6 +159,16 @@ window.GB = (function () {
       int: "3–4 sets of 8–12, pausing one second with the handle at your stomach.",
       adv: "Heavy rows with strict pauses, or single-arm rows for imbalances.",
       mistake: "Rounding your back, or swinging your whole torso to move the weight. If you're swinging, it's too heavy." },
+
+    { id: "low-row", name: "Machine low row", cat: "machines", img: null,
+      what: "The seated row with your chest against a pad — the machine does the holding, so your lower back doesn't.",
+      muscles: ["back", "arms"], musclesText: "Mid-back, lats, biceps",
+      how: "Set the seat so the handles sit at chest height, plant your chest on the pad, and drive your elbows back until the handles reach your ribs. Let them out slowly.",
+      steps: ["Set the seat so the handles are at chest height", "Chest on the pad, feet planted", "Drive your elbows back to your ribs", "Squeeze for a second", "Let the handles out slowly"],
+      beg: "Light, 8\u201310 repetitions. The chest pad means you can feel the back working without bracing for it.",
+      int: "3\u20134 sets of 8\u201312 with a one-second squeeze. One arm at a time if the machine takes it.",
+      adv: "Heavy strict sets, or a wide neutral grip to bias the upper back.",
+      mistake: "Pulling your chest off the pad to win the last inch. That inch comes from your lower back \u2014 the one thing this machine was built to spare." },
 
     { id: "leg-press", name: "Leg press", cat: "machines", img: "img/eq-leg-press.webp",
       what: "Thighs and glutes — the biggest muscles you have — with your back fully supported.",
@@ -234,6 +256,28 @@ window.GB = (function () {
       int: "3–4 sets of 10–15, twice a week — calves respond to patience.",
       adv: "Heavy single-leg work and slow 3-second negatives.",
       mistake: "Bouncing out of the stretch. The bounce belongs to the tendon, not the muscle you're trying to train." },
+
+    { id: "bicep-curl-machine", name: "Biceps curl machine", cat: "machines", img: null,
+      what: "A curl with your upper arms pinned to a pad, so the biceps cannot get help from your shoulders or your back.",
+      muscles: ["arms"], musclesText: "Biceps",
+      load: [[2.5, 40, 2.5], [40, 60, 5]],   /* one small muscle across one joint \u2014 a light stack */
+      how: "Raise the seat until your upper arms lie flat on the pad with your armpits at its top edge. Curl the handles as far as they go, then lower under control until your arms are long.",
+      steps: ["Raise the seat until your armpits reach the top of the pad", "Upper arms flat, elbows on the pivot", "Curl the handles all the way up", "Pause at the top", "Lower until the arms are straight"],
+      beg: "Light, 10\u201312 repetitions, finishing every rep with straight arms.",
+      int: "3 sets of 10\u201312. An isolateral frame works one arm at a time, which shows up a weaker side quickly.",
+      adv: "Drop sets, slow negatives, or single-arm sets to even out a difference.",
+      mistake: "Lifting your elbows off the pad to squeeze out more range. The pad is the whole point \u2014 once the elbows travel it has become a shoulder movement." },
+
+    { id: "ab-crunch", name: "Abdominal crunch machine", cat: "machines", img: null,
+      what: "A crunch with weight on it \u2014 for when planks and floor crunches have stopped making you work.",
+      muscles: ["core"], musclesText: "Abs",
+      load: [[5, 60, 5], [60, 100, 10]],   /* abs take load like anything else, but the lever is short */
+      how: "Set the seat so your navel sits level with the pivot, hook your feet under the rollers, rest your elbows on the pads, and curl your ribs toward your hips. Uncurl slowly.",
+      steps: ["Set the seat so your navel lines up with the pivot", "Hook your feet under the rollers", "Elbows on the pads, fingers light on the handles", "Curl your ribs toward your hips", "Uncurl slowly"],
+      beg: "Light, 12\u201315 repetitions, curling only as far as you can without pulling with your arms.",
+      int: "3 sets of 12\u201315 with a one-second squeeze at the bottom of the curl.",
+      adv: "Heavier sets of 8\u201312 \u2014 abs answer to load like every other muscle.",
+      mistake: "Hauling on the handles and hinging at the hips. Hold them lightly; the spine should curl, not fold." },
 
     /* free weights */
     { id: "dumbbells", name: "Dumbbells", cat: "free", img: "img/eq-dumbbells.webp",
@@ -559,6 +603,17 @@ window.GB = (function () {
       var1: "Light, torso still.", var2: "1-second pause at the stomach.", var3: "Heavy strict sets or single-arm cable rows.",
       safety: "If you're rocking, it's too heavy." },
 
+    { id: "machine-low-row", name: "Machine low row", muscle: "back", part: "mid-back", musclesText: "Mid-back, lats, biceps", kit: "machine", eq: "low-row",
+      level: 1, role: "main", goals: ["muscle", "strength", "fitness", "fatloss"],
+      rx: { 1: { sets: 2, reps: "8\u201310", rest: 90 }, 2: { sets: 3, reps: "8\u201312", rest: 90 }, 3: { sets: 4, reps: "8\u201312", rest: 75 } },
+      position: "Seat set so the handles meet your chest, chest on the pad, feet planted.",
+      movement: "Drive the elbows back until the handles reach your ribs; let them out until the arms are long.",
+      breathing: "Exhale on the pull, inhale on the return.",
+      mistakes: ["Lifting the chest off the pad to finish the rep", "Shrugging the shoulders toward the ears"],
+      cue: "Elbows to your back pockets.",
+      var1: "Light, chest glued to the pad.", var2: "1-second squeeze at the ribs.", var3: "Heavy strict sets, or one arm at a time.",
+      safety: "If your chest leaves the pad, it is too heavy \u2014 that is your lower back taking over." },
+
     { id: "db-row", name: "One-arm dumbbell row", muscle: "back", musclesText: "Lats, mid-back, biceps", kit: "dumbbell", eq: "bench",
       level: 2, role: "main", goals: ["muscle", "strength", "fatloss"],
       rx: { 2: { sets: 3, reps: "8–12", rest: 75 }, 3: { sets: 4, reps: "6–10", rest: 90 } },
@@ -692,6 +747,17 @@ window.GB = (function () {
       var1: "Dumbbell lateral raise.", var2: "Cable, strict.", var3: "Lean-away cable raises for the long range.",
       safety: "Stop at shoulder height — higher only adds neck." },
 
+    { id: "machine-lateral-raise", name: "Machine lateral raise", muscle: "shoulders", part: "side-delts", musclesText: "Side shoulders", kit: "machine", eq: "lateral-raise-machine",
+      level: 1, role: "accessory", goals: ["muscle", "fitness"],
+      rx: { 1: { sets: 2, reps: "12\u201315", rest: 60 }, 2: { sets: 3, reps: "12\u201315", rest: 45 }, 3: { sets: 3, reps: "15\u201320", rest: 45 } },
+      position: "Shoulders level with the pivot, upper arms against the pads.",
+      movement: "Raise out to shoulder height, pause, lower slowly.",
+      breathing: "Exhale up, inhale down.",
+      mistakes: ["Raising above shoulder height", "Shrugging instead of raising"],
+      cue: "Lead with the elbow, stop level with your shoulder.",
+      var1: "Lightest pin, short range.", var2: "Full range with a pause at the top.", var3: "Drop sets or slow negatives.",
+      safety: "The fixed arc removes the swing, not the weight \u2014 start lighter than you think." },
+
     /* ── arms ── */
     { id: "triceps-pushdown", name: "Triceps pushdown", muscle: "arms", musclesText: "Triceps", kit: "cable", eq: "cable-crossover",
       level: 1, role: "accessory", goals: ["muscle"],
@@ -758,6 +824,17 @@ window.GB = (function () {
       cue: "The cable never goes slack.",
       var1: "Light straight bar.", var2: "Rope, turn the palms up at the top.", var3: "Single-arm, facing away from the tower.",
       safety: "Light and constant beats heavy and swinging." },
+
+    { id: "machine-bicep-curl", name: "Machine biceps curl", muscle: "arms", part: "biceps", musclesText: "Biceps", kit: "machine", eq: "bicep-curl-machine",
+      level: 1, role: "accessory", goals: ["muscle", "fitness"],
+      rx: { 1: { sets: 2, reps: "10\u201312", rest: 60 }, 2: { sets: 3, reps: "10\u201312", rest: 60 }, 3: { sets: 3, reps: "12\u201315", rest: 45 } },
+      position: "Seat high enough that your armpits reach the top of the pad, elbows on the pivot.",
+      movement: "Curl the handles all the way up, pause, lower until the arms are straight.",
+      breathing: "Exhale up, inhale down.",
+      mistakes: ["Lifting the elbows off the pad", "Stopping short of straight at the bottom"],
+      cue: "Elbows stay buried in the pad.",
+      var1: "Light, full range, both arms.", var2: "1-second squeeze at the top.", var3: "One arm at a time, or drop sets.",
+      safety: "The pad takes your back out of it \u2014 so the weight that used to work will now be too much." },
 
     { id: "rope-overhead-extension", name: "Cable overhead triceps extension", muscle: "arms", part: "triceps", musclesText: "Triceps (long head)", kit: "cable", eq: "functional-trainer",
       level: 2, role: "accessory", goals: ["muscle"],
@@ -1013,6 +1090,17 @@ window.GB = (function () {
       cue: "Roll up like a wave, not fold like a hinge.",
       var1: "Floor crunches with a slow curl.", var2: "Moderate stack, strict curl.", var3: "Heavier stack — abs like weight too.",
       safety: "The hips stay still; only the spine curls." },
+
+    { id: "machine-crunch", name: "Machine crunch", muscle: "core", part: "abs", musclesText: "Abs", kit: "machine", eq: "ab-crunch",
+      level: 1, role: "core", goals: ["muscle", "fitness"],
+      rx: { 1: { sets: 2, reps: "12\u201315", rest: 45 }, 2: { sets: 3, reps: "12\u201315", rest: 45 }, 3: { sets: 3, reps: "15\u201320", rest: 45 } },
+      position: "Navel level with the pivot, feet hooked under the rollers, elbows on the pads.",
+      movement: "Curl the ribs toward the hips, squeeze, uncurl slowly.",
+      breathing: "Exhale as you curl, inhale as you uncurl.",
+      mistakes: ["Pulling with the arms", "Hinging at the hips with a straight spine"],
+      cue: "Shorten the distance between ribs and hips.",
+      var1: "Light, partial curl.", var2: "Full curl with a 1-second squeeze.", var3: "Heavier sets of 8\u201312.",
+      safety: "Hands rest on the handles; they are there for position, not for pulling." },
 
     { id: "hanging-knee-raise", name: "Hanging knee raise", muscle: "core", musclesText: "Lower abs, hip flexors, grip", kit: "bodyweight", eq: "power-rack",
       level: 2, role: "core", goals: ["muscle", "fitness"],

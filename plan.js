@@ -121,7 +121,7 @@ window.GBPlan = (function () {
 
   /* bumped when the exercise pool or selection changes, so a stored week
      built from the old library is rebuilt with the same answers */
-  var PLAN_V = 6;
+  var PLAN_V = 7;
 
   var DOW = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
   var DOW_SHORT = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -370,12 +370,12 @@ window.GBPlan = (function () {
       cools.push(coolPool.splice((offset + j * 2) % coolPool.length, 1)[0]);
     }
 
-    function item(ex, role) {
+    function item(ex, role, bump) {
       var r = rx(ex, cfg.level, cfg.goal, role);
       var out = { id: ex.id, name: ex.name, kit: ex.kit, eq: ex.eq || null, muscles: ex.musclesText, role: role, rx: r };
       /* week 3 adds a set to the main lifts; show what changed */
-      if (role === "main" && r && !r.time && wk.sets) {
-        out.rx = { sets: r.sets + wk.sets, reps: r.reps, rest: r.rest };
+      if (role === "main" && r && !r.time && bump) {
+        out.rx = { sets: r.sets + bump, reps: r.reps, rest: r.rest };
         out.prev = r.sets + " × " + r.reps;
       }
       return out;
@@ -399,9 +399,10 @@ window.GBPlan = (function () {
        most, and fitToClock stops at the budget. */
     var wantCore = tpl.cardioDay ? 2 : st.core;
     var wantCondN = tpl.cardioDay ? 2 : (wantCond ? (st.cond || 1) : 0);
+    var fixedMinutes = warmItems.concat(coolItems).reduce(function (a, it) { return a + itemMinutes(it); }, 0);
     var fitted = fitToClock({
       budget: cfg.duration,
-      fixed: warmItems.concat(coolItems).reduce(function (a, it) { return a + itemMinutes(it); }, 0),
+      fixed: fixedMinutes,
       first: mainItems[0],
       rest: mainItems.slice(1, st.main)             /* the rest of the main work */
         .concat(condItems.slice(0, wantCondN))      /* the finisher the goal earns */
@@ -415,6 +416,41 @@ window.GBPlan = (function () {
         .concat(condItems.slice(wantCondN))
         .concat(coreItems.slice(Math.max(wantCore, 1)))
     });
+
+    /* ── the volume week is added after the clock, not before it ──
+       Week 3 puts an extra set on the main lifts. Pricing that set *before*
+       the fit meant the clock paid for it out of whatever came last — and on
+       a strength day, where a main lift carries three-minute rests, what came
+       last was another main lift. Adding volume then removed volume: main-lift
+       sets fell in week 3 on 64 of 1,350 answer combinations (18 sets became
+       16), and total sets fell on 461 of them.
+
+       So the clock chooses the session from the base prescription — every week
+       in the block therefore runs the same exercises, which is the point of a
+       block — and the extra set is then offered to each main lift in turn,
+       first lift first, out of whatever slack the booking has left. Nothing is
+       ever sold to pay for it: not a main lift, not an accessory. When the
+       slack runs out the remaining lifts keep their week-1 sets, which is the
+       honest answer at 45 minutes with three-minute rests — there is no room
+       for a fourth set, and inventing it would mean dropping a lift or running
+       the booking over. The week adds volume on 1,113 of the 1,350
+       combinations and takes none away on any of them.
+
+       Known gap: on the other 237 the session is identical to week 2 while
+       `WEEKS[3].note` still promises an extra set. See README, "Still open". */
+    if (wk.sets) {
+      var items = fitted.keep.slice();
+      var spent = items.reduce(function (a, it) { return a + itemMinutes(it); }, fixedMinutes);
+      for (var mi = 0; mi < items.length; mi++) {
+        if (items[mi].role !== "main") continue;
+        var up = item(GB.EX_BY_ID[items[mi].id], "main", wk.sets);
+        var cost = itemMinutes(up) - itemMinutes(items[mi]);
+        if (cost > 0 && showMinutes(spent + cost) > cfg.duration) break;   /* no slack left */
+        items[mi] = up; spent += Math.max(cost, 0);
+      }
+      fitted = { keep: items, minutes: showMinutes(spent) };
+    }
+
     var keep = { main: [], accessory: [], conditioning: [], core: [] };
     fitted.keep.forEach(function (it) { keep[it.role].push(it); });
 

@@ -49,7 +49,7 @@ const click = (w, el) => el.dispatchEvent(new w.MouseEvent("click", { bubbles: t
   {
     const { w, d } = await page("equipment.html");
     const all = $$(d, ".eq-card").length;
-    ok("renders all 30 stations", all === 30, "got " + all);
+    ok("renders all 34 stations", all === 34, "got " + all);
 
     click(w, $(d, '[data-eq-cat="cardio"]'));
     const cardio = $$(d, ".eq-card").length;
@@ -589,12 +589,51 @@ const click = (w, el) => el.dispatchEvent(new w.MouseEvent("click", { bubbles: t
     ok("pull days carry no triceps isolation",
       !idsOf(ppl[1]).some((i) => i === "triceps-pushdown" || i === "overhead-triceps"), idsOf(ppl[1]).join(","));
 
-    /* progression */
-    const setsIn = (wk) => GBP.generate({ level: 1, days: 3, goal: "fitness", duration: 45, weekNumber: wk })
-      .week.filter((d) => d.type === "train")
-      .reduce((a, d) => a + d.blocks.flatMap((b) => b.items).reduce((s, i) => s + (i.rx.sets || 0), 0), 0);
-    ok("week 3 carries more sets than week 1", setsIn(3) > setsIn(1), `${setsIn(1)} → ${setsIn(3)}`);
-    ok("week 4 returns to the week-1 set count", setsIn(4) === setsIn(1));
+    /* progression.
+       This used to assert "week 3 carries more total sets than week 1" on one
+       set of answers, and passed by a single set. It was never a property of
+       the engine: on HEAD it was false for 461 of the 1,350 level/days/goal/
+       duration/kit combinations, because the clock paid for week 3's extra
+       set by evicting whatever came last — an accessory, or on a strength day
+       another main lift. So the sample is now a sweep, and it measures the
+       promise `WEEKS[3]` actually makes: an extra set on the main lifts,
+       taking nothing away to get it. */
+    const sweep = [];
+    for (const level of [1, 2, 3]) for (const days of [2, 3, 4, 5, 6])
+      for (const goal of Object.keys(w.GB.GOALS)) for (const duration of [20, 30, 45, 60, 75, 90])
+        for (const kit of ["full", "machines", "dumbbells"]) sweep.push({ level, days, goal, duration, kit });
+    const setsIn = (cfg, wk) => {
+      const days = GBP.generate({ ...cfg, weekNumber: wk }).week.filter((d) => d.type === "train");
+      const count = (role) => days.reduce((a, d) => a + d.blocks.filter((b) => !role || b.role === role)
+        .flatMap((b) => b.items).reduce((s, i) => s + (i.rx.sets || 0), 0), 0);
+      return { all: count(null), main: count("main") };
+    };
+    const block = sweep.map((c) => ({ cfg: c, w1: setsIn(c, 1), w3: setsIn(c, 3) }));
+
+    const lost = block.filter((b) => b.w3.main < b.w1.main);
+    ok("the volume week never carries less main-lift work than week 1",
+      lost.length === 0, lost.length + " of " + block.length + ", e.g. " + JSON.stringify(lost[0] || {}));
+    const shrank = block.filter((b) => b.w3.all < b.w1.all);
+    ok("...and never pays for it by dropping something else",
+      shrank.length === 0, shrank.length + " of " + block.length + ", e.g. " + JSON.stringify(shrank[0] || {}));
+    const grew = block.filter((b) => b.w3.main > b.w1.main);
+    ok("...and does add a set wherever the booking has room for one",
+      grew.length === 1113, grew.length + " of " + block.length);
+
+    /* The 237 it cannot add to are real: a 45-minute strength day is three
+       main lifts at three-minute rests, and a fourth set fits nowhere. The
+       day is left at its week-2 shape rather than overrunning the booking or
+       dropping a lift — but `WEEKS[3].note` still promises the set. Listed
+       under "Still open" in the README; this pins the number so it cannot
+       grow unnoticed. */
+    ok("...and where it cannot, the day is unchanged rather than damaged",
+      block.length - grew.length === 237, (block.length - grew.length) + " unchanged");
+    /* Week 4 drops back to the week-1 set count and takes the load up instead.
+       Now that the clock picks the session from the base prescription, that
+       should hold for every set of answers, not just the sampled one. */
+    const restored = block.filter((b) => setsIn(b.cfg, 4).all !== b.w1.all);
+    ok("week 4 returns to the week-1 set count",
+      restored.length === 0, restored.length + " of " + block.length + ", e.g. " + JSON.stringify(restored[0] || {}));
     const w3 = GBP.generate({ level: 1, days: 3, goal: "fitness", duration: 45, weekNumber: 3 });
     ok("week 3 shows what changed",
       w3.week.find((d) => d.type === "train").blocks.find((b) => b.role === "main").items[0].prev);
@@ -1032,19 +1071,32 @@ const click = (w, el) => el.dispatchEvent(new w.MouseEvent("click", { bubbles: t
     ok("every photo a station names is a .webp", photos.every((i) => /\.webp$/.test(i)),
       photos.filter((i) => !/\.webp$/.test(i)).join(","));
 
-    /* Hip thrust and pendulum squat were the last two holdouts — photographed
-       2026-08-14. Every station names a file now, and no card falls back to
-       the typographic tile. */
-    ok("every station names a photo",
-      w.GB.EQUIPMENT.every((e) => e.img),
-      w.GB.EQUIPMENT.filter((e) => !e.img).map((e) => e.id).join(","));
+    /* Hip thrust and pendulum squat were the last two holdouts of the
+       original thirty — photographed 2026-08-14. The four stations added
+       from a member's own gym on 2026-09-22 have not been shot yet, so the
+       rule is named rather than blanket: exactly these four carry no photo,
+       no more and no fewer. Delete an id when its photo lands; the run
+       fails if you forget, if a fifth station appears without one, or if a
+       photographed station quietly loses its file. */
+    const PENDING_PHOTO = ["ab-crunch", "bicep-curl-machine", "lateral-raise-machine", "low-row"];
+    const unshot = w.GB.EQUIPMENT.filter((e) => !e.img).map((e) => e.id).sort();
+    ok("every station names a photo but the four still to be shot",
+      unshot.join(",") === PENDING_PHOTO.join(","), unshot.join(",") || "(none)");
     for (const id of ["hip-thrust", "pendulum-squat"]) {
       const card = $(d, `.eq-card[data-eq="${id}"]`);
       ok(`${id} renders its photograph`, !!card && !!$(card, ".ph img") && !$(card, ".ph-fallback"));
       ok(`${id}'s photo is labelled with the station`,
         !!card && $(card, ".ph img").getAttribute("alt") === w.GB.EQ_BY_ID[id].name);
     }
-    ok("no card anywhere on the page falls back to a tile", $$(d, ".ph-fallback").length === 0);
+    const tiles = $$(d, ".eq-card .ph-fallback")
+      .map((el) => el.closest(".eq-card").dataset.eq).sort();
+    ok("only those four cards fall back to a typographic tile",
+      tiles.join(",") === PENDING_PHOTO.join(","), tiles.join(",") || "(none)");
+    ok("...and nothing else on the page falls back at all",
+      $$(d, ".ph-fallback").length === tiles.length, $$(d, ".ph-fallback").length + " vs " + tiles.length);
+    ok("each unphotographed tile still names its station",
+      $$(d, ".eq-card .ph-fallback span").map((el) => el.textContent).sort().join(",") ===
+      PENDING_PHOTO.map((id) => w.GB.EQ_BY_ID[id].name).sort().join(","));
 
     let broken = [];
     for (const i of [...new Set(photos)]) {
@@ -1081,7 +1133,8 @@ const click = (w, el) => el.dispatchEvent(new w.MouseEvent("click", { bubbles: t
     ok("no station ships a clip yet", w.GB.EQUIPMENT.every((e) => !e.video));
     ok("so no demo button renders anywhere", $$(d, ".demo-btn").length === 0);
     ok("equipment cards still name their station for later",
-      $$(d, ".eq-card[data-eq]").length === 30);
+      $$(d, ".eq-card[data-eq]").length === w.GB.EQUIPMENT.length,
+      $$(d, ".eq-card[data-eq]").length + " of " + w.GB.EQUIPMENT.length);
     ok("the demo API is available", typeof w.GBDemo === "object" && typeof w.GBDemo.arm === "function");
 
     /* inject a clip and confirm the button appears and the panel is built from data */
