@@ -36,7 +36,7 @@
   function hasClip(st) { return !!(st && st.video && st.video.src); }
 
   /* ── the panel ── */
-  var dlg, vid, reduce = false;
+  var dlg, vid, segs = null, reduce = false;
   try { reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches; } catch (e) {}
 
   function build() {
@@ -63,11 +63,16 @@
     vid = $(".demo-video", dlg);
 
     /* cues are HTML over the frame, not burned into it — editable without
-       re-encoding, and they scale and stay selectable */
+       re-encoding, and they scale and stay selectable.
+
+       `segs` is held as a plain array rather than round-tripped through a
+       data attribute: timeupdate fires several times a second, and parsing
+       the same JSON on every tick was the one unguarded JSON.parse on the
+       site — a malformed segment list would have thrown into the playback
+       loop. open() sets it once per clip instead. */
     vid.addEventListener("timeupdate", function () {
-      var cue = $(".demo-cue", dlg);
-      var segs = vid.dataset.segments ? JSON.parse(vid.dataset.segments) : null;
       if (!segs) return;
+      var cue = $(".demo-cue", dlg);
       var t = vid.currentTime, text = "";
       for (var i = 0; i < segs.length; i++) if (t >= segs[i][0]) text = segs[i][1];
       cue.textContent = text;
@@ -99,10 +104,10 @@
     if (st.img) vid.poster = st.img; else vid.removeAttribute("poster");
     vid.src = st.video.src;
     /* setup · movement · the thing people get wrong */
-    vid.dataset.segments = JSON.stringify(st.video.segments ||
+    segs = st.video.segments ||
       [[0, st.steps && st.steps[0] ? st.steps[0] : "Set up"],
        [sec * 0.3, "Correct movement"],
-       [sec * 0.75, st.mistake ? st.mistake.split(".")[0] : "Watch your form"]]);
+       [sec * 0.75, st.mistake ? st.mistake.split(".")[0] : "Watch your form"]];
 
     /* showModal gives focus trapping and a backdrop for free; the bare `open`
        attribute still shows the panel where it isn't available */

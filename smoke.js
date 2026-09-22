@@ -807,6 +807,42 @@ const click = (w, el) => el.dispatchEvent(new w.MouseEvent("click", { bubbles: t
       short.length === 0, short.map((x) => `${x.f} ${x.n}`).join(", "));
   }
 
+  /* ── the numbers the site claims out loud ──
+     Two descriptions and one card carry a count rather than a list, because
+     a number is checkable and a taxonomy isn't. The catch is that data.js
+     kept growing and the strings didn't: the library passed 41 entries long
+     ago and every public claim still said 41. Counted here so the drift
+     fails a run instead of quietly understating the site. */
+  section("claimed counts match the libraries");
+  {
+    const { w, d } = await page("exercises.html");
+    const lib = w.GB.EXERCISES.filter((x) => x.role !== "warmup" && x.role !== "cooldown");
+    const stations = w.GB.EQUIPMENT.length;
+
+    const claimed = (doc, sel, attr) => {
+      const el = $(doc, sel);
+      const text = el ? (attr ? el.getAttribute(attr) : el.textContent) : "";
+      const m = /(\d+)/.exec(text || "");
+      return m ? +m[1] : null;
+    };
+
+    ok("the exercise library's description counts the cards it shows",
+      claimed(d, 'meta[name="description"]', "content") === lib.length,
+      `claims ${claimed(d, 'meta[name="description"]', "content")}, shows ${lib.length}`);
+
+    const eq = await page("equipment.html");
+    ok("the equipment library's description counts the stations it shows",
+      claimed(eq.d, 'meta[name="description"]', "content") === stations,
+      `claims ${claimed(eq.d, 'meta[name="description"]', "content")}, shows ${stations}`);
+
+    const home = await page("index.html");
+    const cards = $$(home.d, ".eq-cat").map((el) => el.textContent);
+    ok("the homepage's library cards count the same things",
+      cards.some((t) => new RegExp(`\\b${lib.length}\\b`).test(t)) &&
+      cards.some((t) => new RegExp(`\\b${stations}\\b`).test(t)),
+      cards.join(" | ") + `  → expected ${lib.length} and ${stations}`);
+  }
+
   /* ── structure every page is read through ──
      Not style: this is what a screen reader navigates by, and what a
      keyboard lands on. Measured on every page, and on the three that only

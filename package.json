@@ -1,0 +1,14 @@
+{
+  "name": "gym-basics",
+  "private": true,
+  "description": "Static training site. The site itself has no dependencies; these are the test harness only.",
+  "scripts": {
+    "serve": "python3 -m http.server 8000",
+    "test": "node smoke.js http://localhost:8000",
+    "test:ci": "python3 -m http.server 8765 & SRV=$!; sleep 2; node smoke.js http://localhost:8765; ST=$?; kill $SRV; exit $ST"
+  },
+  "devDependencies": {
+    "jsdom": "^30.1.0",
+    "playwright": "^1.63.0"
+  }
+}

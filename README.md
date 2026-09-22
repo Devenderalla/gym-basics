@@ -13,7 +13,7 @@ It answers two questions end to end: **"I'm going to the gym today. What exactly
 ## Preview
 
 ```bash
-cd /root/practice/websites/gym-basics
+cd gym-basics
 python3 -m http.server 8000
 # open http://localhost:8000
 ```
@@ -36,7 +36,7 @@ beginner.html      full guided machine session (6 phases) + first-4-weeks roadma
 intermediate.html  push/pull/legs split with a fully guided push day + progression rules
 advanced.html      guided lower-body strength day, 5-day week, intensity techniques
 equipment.html     30 stations, searchable, filterable by zone and muscle
-exercises.html     41 exercises with full instructions, filterable by muscle/level/equipment
+exercises.html     63 exercises with full instructions, filterable by muscle/level/equipment
 builder.html       level + goal + muscles + duration + equipment → structured session
 guide.html         the original first-day content: floor map, weights primer,
                    first 30 minutes, etiquette, what to bring
@@ -46,7 +46,7 @@ guide.html         the original first-day content: floor map, weights primer,
 
 ```
 styles.css   design system shared by all pages
-data.js      the database: 30 equipment entries + 58 exercises, and the weight
+data.js      the database: 30 equipment entries + 81 exercises, and the weight
              ladders each station steps in (single source of truth)
 plan.js      training engine — exercise selection, split templates, week generation
 app.js       nav, scroll reveal, library rendering, filters, workout builder
@@ -510,7 +510,7 @@ something up**. Any element carrying `data-eq` (a station) or `data-ex` (an exer
 is followed to its station) gets the button, which covers program rows, generated plans,
 builder output, the equipment cards and — since 2026-08-13 — the exercise cards, which
 carry both and reach the demo through the station their exercise uses. So a clip filmed once
-appears in both libraries. 38 of the 41 exercises name a station; the three that use none
+appears in both libraries. 60 of the 63 exercises name a station; the three that use none
 (bodyweight and cardio work) are correctly left unnamed and never get a button.
 
 Placement follows the surface: workout rows put it with the set buttons, equipment cards
@@ -564,12 +564,15 @@ place to find out how it is wired.
   there, so anything longer is writing nobody reads. The nutrition page was 234 — roughly its last
   third never rendered — and four others sat at 163–167. All twelve are now within the guideline.
   Check the count when editing one; it is the easiest thing on the site to quietly break.
-- **Two descriptions carry a number rather than a list.** *All 30 gym stations* and *41 exercises*
+- **Two descriptions carry a number rather than a list.** *All 30 gym stations* and *63 exercises*
   replaced a taxonomy and a vague "every exercise in the programs". If the libraries grow, these
   two strings and the *Specific verifiable claim* row in `copy-doc.md` have to move together.
-- **41, not 58.** `data.js` holds 58 exercises, but 17 are warm-up and cool-down furniture the
-  library filters out (`role === "warmup" || role === "cooldown"`). 41 is what a reader can count
-  on the page, so 41 is the number that may be claimed anywhere public.
+  They did grow, and the strings didn't: the library reached 63 while every public claim still
+  said 41. **`smoke.js` now enforces this** — it counts `data.js` and fails if any claimed number
+  disagrees, so the next time the library grows the test says so instead of the metadata rotting.
+- **63, not 81.** `data.js` holds 81 exercises, but 18 are warm-up and cool-down furniture the
+  library filters out (`role === "warmup" || role === "cooldown"`). 63 is what a reader can count
+  on the page, so 63 is the number that may be claimed anywhere public.
 - **The nutrition page's opening order is deliberate and measured**, not stylistic. Headline, three
   sentences of lede, then the `Work out my target ↓` button — all above the fold on a 375×812
   phone, with the first question's answer buttons at 753px. It used to run ~100 words of lede with

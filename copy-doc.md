@@ -19,7 +19,7 @@ the copy below was rewritten to match. Read this section before trusting any old
 |---|---|---|
 | Shape | One page | 12 pages: home, programs, 3 level sessions, 2 libraries, builder, week planner, workout runner, nutrition, first-day guide |
 | Primary action | Start the walkthrough | **Build my week** |
-| Equipment | 12 machines, SVG diagrams | **30 stations**, photographed, plus **41 exercises** in their own library |
+| Equipment | 12 machines, SVG diagrams | **30 stations**, photographed, plus **63 exercises** in their own library |
 | Audience | People who have never trained | Widened: *"Built for people who've never trained — and the people who train daily."* |
 | Nutrition | Not in scope | A whole page — calorie and protein targets read from the training week, plus a correction the scale argues for |
 | Proof | None | **Still none.** Nothing was invented in the meantime. |
@@ -50,7 +50,7 @@ than the one it replaced. See *Hero*.
 | **Why we're better** | Fitness content assumes you already know the room. This explains the room itself — what each object is, how to spot it, what it's for, and the lightest honest way to start. |
 | **#1 objection** | "Everyone will see I don't know what I'm doing." |
 | **Objections 2–4** | 2 · "I'll injure myself." 3 · "I don't know where to start." 4 · "I should get fit first, then join." |
-| **Specific verifiable claim** | 30 stations explained; 41 exercises with full instructions; a training week planned from three questions; calorie and protein targets read from that week; free, no signup, works offline. All checkable on the site itself. *(`data.js` holds 58 exercises, but 17 are warm-up and cool-down furniture the library never lists. **41 is the number a reader can count**, so 41 is the number to claim — do not "correct" it to 58.)* |
+| **Specific verifiable claim** | 30 stations explained; 63 exercises with full instructions; a training week planned from three questions; calorie and protein targets read from that week; free, no signup, works offline. All checkable on the site itself. *(`data.js` holds 81 exercises, but 18 are warm-up and cool-down furniture the library never lists. **63 is the number a reader can count**, so 63 is the number to claim — do not "correct" it to 81. `smoke.js` checks this claim against `data.js` on every run.)* |
 | **Proof available** | **None. Stated plainly rather than invented.** No testimonials, no user counts, no expert review yet. See "Proof" section for what to do instead. |
 
 ---
@@ -186,7 +186,7 @@ Until #1 and #2 exist, no page may imply professional authority anywhere.
 | `programs.html` | The three levels side by side | Programs |
 | `beginner/intermediate/advanced.html` | A complete guided session at each level | (level name) |
 | `equipment.html` | 30 stations, filterable by zone and muscle | Equipment library |
-| `exercises.html` | 41 exercises, full instructions | Exercise library |
+| `exercises.html` | 63 exercises, full instructions | Exercise library |
 | `builder.html` | One session to your constraints | Build your workout |
 | `week.html` | A whole training week | Build my week |
 | `workout.html` | The live session runner, with Focus mode | (session name) |
@@ -645,7 +645,7 @@ shorter, which is the better trade:
 | Page | Was | Now | Change |
 |---|---|---|---|
 | `equipment.html` | 167 | **140** | Dropped the category list ("cardio, machines, free weights and functional equipment") for the count: *All 30 gym stations*. A number is more use to a reader than a taxonomy, and it is checkable. |
-| `exercises.html` | 163 | **139** | *"Every exercise in the programs"* → *"41 exercises"*, same reason. "Beginner-to-advanced variations" → "a version for every level". |
+| `exercises.html` | 163 | **139** | *"Every exercise in the programs"* → *"63 exercises"*, same reason. "Beginner-to-advanced variations" → "a version for every level". |
 | `week.html` | 167 | **148** | Rebuilt around the site's own framing — *Three questions — your level, your days, your goal*. |
 | `builder.html` | 166 | **144** | Phase list collapsed to *"a full session from warm-up to cool-down"*. |
 
@@ -654,9 +654,10 @@ grep of `app.js` found only five phases, none of them a cool-down. It does emit 
 number is computed, so the label did not match a naive search. The original claim was accurate and
 was preserved.*
 
-**Where the numbers come from:** 30 stations and 41 exercises are the library counts a reader can
+**Where the numbers come from:** 30 stations and 63 exercises are the library counts a reader can
 verify by counting cards. See the *Specific verifiable claim* row for why the exercise figure is
-41 and not the 58 in `data.js`.
+63 and not the 81 in `data.js`. These were still claiming 41 long after the library passed it;
+`smoke.js` now counts `data.js` and fails the run if a public number disagrees.
 
 **OG image:** the overhead floor map with the three zones labelled. Still communicates "map of a
 gym" at thumbnail size — but it now represents a site that is mostly not a map. Worth revisiting.
@@ -701,7 +702,7 @@ gym" at thumbnail size — but it now represents a site that is mostly not a map
 **Marked ASSUMED, needs validation:**
 - The current alternative (YouTube/reels/copying others) — confirm with 3 real beginners.
 - "Two or three times a week" frequency guidance — needs the qualified reviewer's sign-off.
-- Every technique instruction across 30 stations and 41 exercises is standard, widely-published
+- Every technique instruction across 30 stations and 63 exercises is standard, widely-published
   guidance, but **none of it has been checked by a professional.**
 - **Every nutrition number** — the RMR equation, the activity multipliers, the session costs, the
   protein-per-kilo figures, the calorie floor, and the correction's ±250/±600 limits — is
